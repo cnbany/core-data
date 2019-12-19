@@ -1,6 +1,7 @@
 # Created by .ignore support plugin (hsz.mobi)
 ### Node template
 # Logs
+tmp
 cache
 cache*.json
 script/dist

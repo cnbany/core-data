@@ -279,24 +279,24 @@ msdz.prototype.dict = function () {
 
 module.exports = msdz;
 
-// (async () => {
-//     let a = new msdz()
+(async () => {
+    let a = new msdz()
 
-//     await a.load(true)
+    await a.load(true)
 
-//     let address = require("../cache/address.json")
-//     let now = new Date()
-//     for (let i in address) {
-//         let res = a.match(address[i])
-//         if (i != 0 && i % 10000 == 0) {
-//             let last = new Date()
-//             console.log(`no.${i} : Average use ${((last - now) / 10000).toFixed(2)}ms current txt is ${address[i]}`)
-//             now = last
-//             misc.log(res)
-//         }
-//     }
-//     // a.save()
-// })()
+    let address = require("../cache/address.json")
+    let now = new Date()
+    for (let i in address) {
+        let res = a.match(address[i])
+        if (i != 0 && i % 10000 == 0) {
+            let last = new Date()
+            console.log(`no.${i} : Average use ${((last - now) / 10000).toFixed(2)}ms current txt is ${address[i]}`)
+            now = last
+            misc.log(res)
+        }
+    }
+    // a.save()
+})()
 
 //结果格式： 
 /*{
