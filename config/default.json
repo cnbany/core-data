@@ -1,0 +1,37 @@
+{
+  "server": {
+    "elastic": {
+      "socket": "bany.vip:9200",
+      "user": "elastic",
+      "pass": "cnbany"
+    },
+    "redis": {
+      "host": "103.45.104.11",
+      "port": 6379,
+      "family": 4,
+      "password": "cnbany",
+      "db": 0
+    }
+  },
+  "dict": {
+    "districts": {
+      "dict": "./res/jieba_district.utf8",
+      "userDict": "./res/jieba_nation.utf8",
+      "stopWordDict": "./res/jieba_stop.utf8"
+    },
+    "scenics": {
+      "dict": "./res/scenics_dict.utf8",
+      "stopWordDict": "./res/jieba_stop.utf8"
+    },
+    "jiebaScenic": {
+      "dict": "./res/jieba.dict.utf8",
+      "userDict": "./res/scenic.utf8",
+      "stopWordDict": "./res/jieba_stop.utf8"
+    }
+  },
+  "cache": {
+    "cache": "./cache/",
+    "crawl": "./cache/crawl/",
+    "bany": "./cache/bany/"
+  }
+}
