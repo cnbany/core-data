@@ -1,4 +1,8 @@
 {
+  "scripts": {
+    "test": "mocha"
+  },
+
   "dependencies": {
     "bodybuilder": "^2.2.20",
     "cmd-promise": "^1.2.0",
