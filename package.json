@@ -3,22 +3,25 @@
     "test": "mocha"
   },
   "dependencies": {
-    "array.prototype.flatmap": "^1.2.3",
-    "bodybuilder": "^2.2.20",
+    "array.prototype.flatmap": "^1.2.2",
+    "baidu-aip-sdk": "^2.4.4",
+    "bodybuilder": "^2.2.18",
     "cmd-promise": "^1.2.0",
     "config": "^3.2.4",
     "crawler": "^1.2.1",
     "debug": "^4.1.1",
-    "glob": "^7.1.6",
+    "globby": "^10.0.1",
+    "got": "^9.6.0",
     "graceful-fs": "^4.2.3",
     "ioredis": "^4.14.1",
-    "lodash": "^4.17.15",
+    "loadsh": "^0.0.4",
     "make-dir": "^3.0.0",
     "mocha": "^6.2.2",
+    "nanoid": "^2.1.7",
     "nodejieba": "^2.3.3",
-    "path": "^0.12.7",
     "qs": "^6.9.1",
-    "readline": "^1.3.0",
-    "should": "^13.2.3"
+    "readline-sync": "^1.4.10",
+    "should": "^13.2.3",
+    "temme": "^0.8.3"
   }
 }
