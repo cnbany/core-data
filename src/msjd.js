@@ -10,12 +10,12 @@ const _ = require("lodash");
 const config = require('config');
 
 const jieba = require("nodejieba");
-const chinese = require("../libs/chinese")
-const fs = require("../libs/fs")
-const misc = require("../libs/misc");
+const chinese = require("../lib/chinese")
+const fs = require("../lib/fs")
+const misc = require("../lib/misc");
 const log = misc.log
 
-const Elastic = require("../libs/elastic");
+const Elastic = require("../lib/elastic");
 const db = new Elastic("scenicss");
 
 function normalizer(str) {
@@ -165,10 +165,10 @@ module.exports = jd;
 // jd.load()
 // log("end load")
 
-// // // jd.load()
-// log("start")
+jd.load()
+log("start")
 // // for (let i = 0; i < 100; i++)
-// jd.match("福建长门炮台")
-// log("end")
+jd.match("福建长门炮台")
+log("end")
 
 // log(jds.length)

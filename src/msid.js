@@ -1,9 +1,9 @@
 const gen = require('nanoid/non-secure/generate')
 const _ = require("lodash");
 
-const fs = require('../libs/fs');
-const misc = require('../libs/misc');
-const redis = require('../libs/redis');
+const fs = require('../lib/fs');
+const misc = require('../lib/misc');
+const redis = require('../lib/redis');
 
 let log = misc.log
 
@@ -33,6 +33,7 @@ function msid(name = "scenic", len = 12, path = "./cache/ids.json") {
 }
 
 msid.prototype.get = function (key) {
+
     let ret = ids[key] || add[key] || null
     if (!ret) {
         ret = gen('1234567890abcdef', this.len)
@@ -61,7 +62,7 @@ msid.prototype.load = async function (auto = true) {
     }
 
     if (bsync) {
-        ids = await redis.get()
+        ids = await redis.get("scenic")
     } else
         ids = fs.read(this.path, 'json')
 };
@@ -81,16 +82,3 @@ msid.prototype.save = async function () {
 
 module.exports = msid;
 
-// (async () => {
-//     let m = {
-//         "B020202D9F": "a0b5a5bbad7c",
-//         "B0175013T1": "9a0b53cf5624"
-//     }
-//     let idms = new msid("scenic")
-//     await idms.load()
-//     idms.set("1111111111111", "tttttttttttttt")
-//     let i = idms.get("B020202D9F")
-//     console.log(i)
-//     await idms.done()
-//     console.log(i)
-// })();
