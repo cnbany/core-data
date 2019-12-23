@@ -1,9 +1,11 @@
+require('dotenv').config({ DEBUG: 'bany*' })
+console.log(process.env.DEBUG)
 const gen = require('nanoid/non-secure/generate')
-const _ = require("lodash");
+const log = require("debug")("bany-msid:")
 
-const fs = require('../lib/fs');
+const _ = require("lodash");
 const redis = require('../lib/redis')("scenic");
-let log = require("debug")("bany-msid:")
+const elastic = require("../lib/elastic")
 
 let db = new elastic("scenics")
 
@@ -25,19 +27,30 @@ set :   add amap key, id  => mem
 
  */
 
-function _load(auto = true) {
+async function _sync() {
 
-
-    // auto 模式: 一天更新一次
-    let bsync = false
-    let qs = qs || {
+    let qs = {
         "query": {
             "match_all": {}
         },
-        size: 5000        
+        size: 5000,
+        _source: ["id", "external"]
     }
-    let res = db.dump()
-    };
+
+    let res = await db.search(qs)
+
+    res = _.reduce(res, function (result, item) {
+        if (item.external && item.external.amap) {
+            let o = {}
+            o[item.external.amap.id] = item.id
+            result.push(o)
+        }
+        return result;
+    }, [])
+
+    await redis.set(res)
+
+};
 
 
 function msid(name, len) {
@@ -46,8 +59,8 @@ function msid(name, len) {
     len = len || 12
 
     let res = {
-        get: function (key) {
-            let ret = ids[key] || add[key] || null
+        get: async function (key) {
+            let ret = await redis.get(key)
             if (!ret) {
                 ret = gen('1234567890abcdef', len)
                 await redis.set({
@@ -64,3 +77,9 @@ function msid(name, len) {
 }
 
 module.exports = msid;
+
+
+// (async () => {
+//     // _load()
+//     log(process.env.DEBUG)
+// })()
