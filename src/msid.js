@@ -2,10 +2,10 @@ const gen = require('nanoid/non-secure/generate')
 const _ = require("lodash");
 
 const fs = require('../lib/fs');
-const misc = require('../lib/misc');
-const redis = require('../lib/redis');
+const redis = require('../lib/redis')("scenic");
+let log = require("debug")("bany-msid:")
 
-let log = misc.log
+let db = new elastic("scenics")
 
 let ids = {},
     add = {}
@@ -15,7 +15,7 @@ let ids = {},
 /* 
 manage data
 
-flush : 刷新数据  elastic(src) => mem => file => redis 
+flush : 刷新数据  elastic(src) => redis => file => redis 
 
 load : 加载  file || redis => mem 
 done : 加载  mem => file && redis 
@@ -25,60 +25,42 @@ set :   add amap key, id  => mem
 
  */
 
+function _load(auto = true) {
 
-function msid(name = "scenic", len = 12, path = "./cache/ids.json") {
-    this.name = name
-    this.len = len
-    this.path = path
-}
-
-msid.prototype.get = function (key) {
-
-    let ret = ids[key] || add[key] || null
-    if (!ret) {
-        ret = gen('1234567890abcdef', this.len)
-        add[key] = ret
-    }
-    return ret
-};
-
-msid.prototype.set = function (key, value) {
-    add[key] = value
-};
-
-msid.prototype.load = async function (auto = true) {
 
     // auto 模式: 一天更新一次
     let bsync = false
-    if (!fs.exist(this.path))
-        bsync = true
-    else if (!auto)
-        bsync = false
-    else {
-        let now = new Date()
-        let mtime = fs.info(this.path).mtime
-        if (now.getDate() - mtime.getDate() >= 1)
-            bsync = true
+    let qs = qs || {
+        "query": {
+            "match_all": {}
+        },
+        size: 5000        
     }
-
-    if (bsync) {
-        ids = await redis.get("scenic")
-    } else
-        ids = fs.read(this.path, 'json')
-};
+    let res = db.dump()
+    };
 
 
-msid.prototype.save = async function () {
+function msid(name, len) {
 
-    // mem => file
-    fs.write(this.path, _.assign(ids, add), 'json')
+    name = name || "scenic"
+    len = len || 12
 
-    //mem => redis
-    if (JSON.stringify(add) !== '{}')
-        await redis.set(add)
-    else
-        log('no new data.')
-};
+    let res = {
+        get: function (key) {
+            let ret = ids[key] || add[key] || null
+            if (!ret) {
+                ret = gen('1234567890abcdef', len)
+                await redis.set({
+                    key: ret
+                })
+            }
+            return ret
+        },
+        set: async function (key, value) {
+            await redis.set(key, value)
+        }
+    }
+    return res
+}
 
 module.exports = msid;
-

@@ -11,6 +11,11 @@
       "family": 4,
       "password": "cnbany",
       "db": 0
+    },
+    "redis_local": {
+      "host": "127.0.0.1",
+      "port": 6379,
+      "family": 4
     }
   },
   "dict": {
