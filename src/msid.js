@@ -4,13 +4,13 @@ const gen = require('nanoid/non-secure/generate')
 const log = require("debug")("bany-msid:")
 
 const _ = require("lodash");
-const redis = require('../lib/redis')("scenic");
+
+const redis = require('../lib/redis')("scenics");
 const elastic = require("../lib/elastic")
+const db = new elastic("scenics")
 
-let db = new elastic("scenics")
-
-let ids = {},
-    add = {}
+// let ids = {},
+//     add = {}
 /*  ids => load data ; add => add data */
 
 
@@ -49,7 +49,6 @@ async function _sync() {
     }, [])
 
     await redis.set(res)
-
 };
 
 
@@ -79,7 +78,28 @@ function msid(name, len) {
 module.exports = msid;
 
 
-// (async () => {
-//     // _load()
-//     log(process.env.DEBUG)
-// })()
+async function _synctest() {
+
+    let qs = {
+        "query": {
+            "match_all": {}
+        },
+        size: 5000
+    }
+
+    let res = await db.search(qs)
+
+    res = _.reduce(res, function (result, item) {
+            let o = {}
+            o[item.id] = JSON.stringify(item)
+            result.push(o)
+        return result;
+    }, [])
+
+    await redis.set(res)
+};
+
+
+(async () => {
+    _synctest()
+})()
