@@ -21,5 +21,12 @@ describe('elastic', function () {
             (c2 - c1).should.be.aboveOrEqual(0);
         });
     });
+    context('#dump()', function () {
+        it('dump raw result', async function () {
+            let c1 = await db.count();
+            let res = await db.dump();
+            (res.length - c1).should.be.equal(0);
+        });
+    });
 
 });
