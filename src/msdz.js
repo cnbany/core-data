@@ -109,18 +109,16 @@ function _pickup(picks) {
 async function get(keys) {
 
     let res = await redis.get(keys)
-    if (Array.isArray(res))
-        res = _.reduce(res, (result, item) => {
-            result.push(JSON.parse(item))
-            return result
-        }, [])
-    else if (typeof (res) == 'string')
+
+    if (_.isArray(res) || _.isObject(res))
+        for (let i in res)
+            res[i] = JSON.parse(res[i])
+
+    else if (_.isString(res) == 'string')
         res = JSON.parse(res)
-    else if (_.isObject(res)) {
-        for (let key in res)
-            res[key] = JSON.parse(res[key])
-    }
+
     log("get: is done !")
+
     return res
 }
 
@@ -215,12 +213,6 @@ let msdz = {
     }
 
 }
-
-
-
-
-
-
 
 
 module.exports = msdz;
