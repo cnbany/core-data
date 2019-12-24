@@ -3,7 +3,7 @@
 http://www.stats.gov.cn/tjsj/tjbz/tjyqhdmhcxhfdm/2018/
 */
 
-
+process.env.DEBUG = "bany*"
 const _level = ["country", "province", "city", "district", "street"]
 
 
@@ -13,7 +13,7 @@ const fs = require("../lib/fs")
 
 const log = require("debug")("bany-msdz:")
 
-const redis = require('../lib/redis')("districts");
+const redis = require('../lib/redis')("district");
 const config = require('config');
 const chinese = require("../lib/chinese")
 const elastic = require("../lib/elastic");
@@ -21,7 +21,7 @@ const db = new elastic("district")
 const jieba = require("nodejieba");
 
 loaddic = () => jieba.load(config.get("dict.districts"));
-
+loaddic()
 
 
 /* 
@@ -54,9 +54,24 @@ function _keyword(str) {
     return str.replace(reNation, '').replace(rePostfix, '')
 }
 
+function _normal(str) {
+
+    if (typeof (str) != 'string')
+        str = JSON.stringify(str)
+
+    //处理无用字符
+    str = str.replace(/>/g, "").replace(/ /g, "")
+
+    //处理繁体字
+
+    if (chinese.ist(str))
+        str = chinese.t2s(str)
+    return str
+}
+
 function _pickup(picks) {
 
-    if (!_.isArray(picks) || picks.length == 0) return ""
+    if (!Array.isArray(picks) || picks.length == 0) return ""
 
     //设置加权因子
 
@@ -91,189 +106,154 @@ function _pickup(picks) {
     return picks[0].id
 }
 
+async function get(keys) {
 
+    let res = await redis.get(keys)
+    if (Array.isArray(res))
+        res = _.reduce(res, (result, item) => {
+            result.push(JSON.parse(item))
+            return result
+        }, [])
+    else if (typeof (res) == 'string')
+        res = JSON.parse(res)
+    else if (_.isObject(res)) {
+        for (let key in res)
+            res[key] = JSON.parse(res[key])
+    }
+    log("get: is done !")
+    return res
+}
 
-let dzs = [],
-    add = []
 
 // 地址信息管理
-function msdz() {
-    loaddic()
 
+let msdz = {
 
-}
+    get: async function (keys) {
+        return await get(keys)
+    },
 
+    match: async function (location) {
 
+        if (!location) return {}
 
-msdz.prototype.save = async function () {
-    // mem => file[]
-    let data = dzs
-    data.push(...add)
-    fs.write(this.path, data, 'ndjson')
+        // 对文本进行预处理
+        location = _normal(location)
 
+        //分词
+        let tags = jieba.tag(location),
+            picks = []
 
-    //mem => elastic
-    if (add.length > 0)
-        await db.bulk(add)
-    else
-        log("no new data.")
-};
+        // 挑选关键词，并设置初始权重
 
-msdz.prototype.match = function (location) {
-
-    // 对文本进行预处理
-
-    if (!location) return {}
-
-    if (typeof (location) != 'string')
-        location = JSON.stringify(location)
-
-    //处理无用字符
-
-    location = location.replace(/>/g, "").replace(/ /g, "")
-
-    //处理繁体字
-
-    if (chinese.ist(location))
-        location = chinese.t2s(location)
-
-    //分词
-
-    let tags = jieba.tag(location),
-        picks = []
-
-    // 挑选关键词，并设置初始权重
-
-    for (let i in tags) {
-        if (tags[i].tag[0] == "[") {
-            let o = JSON.parse(tags[i].tag)
-            o = _.flatMap(o, x => {
-                return {
-                    id: x,
-                    w: (1 / o.length)
-                }
-            })
-            picks.push(...o)
+        for (let i in tags) {
+            if (tags[i].tag[0] == "[") {
+                let o = JSON.parse(tags[i].tag)
+                o = _.flatMap(o, x => {
+                    return {
+                        id: x,
+                        w: (1 / o.length)
+                    }
+                })
+                picks.push(...o)
+            }
         }
-    }
 
-    if (picks.length == 0) return {}
+        if (picks.length == 0) return {}
 
-    // 查询所有相关行政区记录信息
+        // 查询所有相关行政区记录信息
 
-    let ids = _.flatMap(picks, "id")
-    let districts = _.filter(dzs, x => ids.indexOf(x.id) >= 0)
+        let ids = _.flatMap(picks, "id")
+        // let districts = _.filter(dzs, x => ids.indexOf(x.id) >= 0)
 
-    for (let i in picks)
-        picks[i].districts = _.find(districts, x => x.id == picks[i].id).districts || {}
+        let districts = await get(ids)
 
-    //只有一条记录时直接返回数据
+        for (let i in picks)
+            picks[i].districts = _.find(districts, x => x.id == picks[i].id).districts || {}
 
-    if (districts.length == 1) return districts[0]
+        //只有一条记录时直接返回数据
 
-    // 根据权重挑选,返回数据
-    let pickid = _pickup(picks, districts)
-    let district = _.find(districts, x => x.id == pickid)
+        if (districts.length == 1) return districts[0]
 
-    return district
-}
+        // 根据权重挑选,返回数据
+        let pickid = _pickup(picks, districts)
+        let district = _.find(districts, x => x.id == pickid)
 
-msdz.prototype.set = function (district) {
+        return district
+    },
 
-    if (district && district.hasOwnProperty("id"))
-        add.push(district)
-};
+    dict: async function () {
 
-msdz.prototype.mset = function (districts) {
+        let keys = {}
+        let dzs = await get()
+        for (let i in dzs) {
 
-    if (!_.isArray(districts) || districts.length < 1) return []
+            let name = dzs[i].name
+            let kw = _keyword(name)
 
-    for (let i in districts) {
-        if (district[i] && district[i].hasOwnProperty("id"))
-            add.push(district)
-        else {
-            log("data [id] is missed.")
-            log(districts[i])
+            if (!keys[name]) keys[name] = []
+
+            keys[name].push(dzs[i].id)
+
+            if (kw != name && kw.length > 1)
+                (keys[kw]) ? keys[kw].push(dzs[i].id) : keys[kw] = [dzs[i].id]
         }
+
+        let dicts = []
+        for (let key in keys) {
+            let tag = "",
+                freq = 1,
+                count = _level.length
+
+            dicts.push(`${key} ${freq} ${JSON.stringify(keys[key])}`)
+        }
+
+
+        fs.write("./res/jieba_district.utf8", dicts.join("\n"))
+        log(`[./res/jieba_district.utf8] dict is builded`)
+        loaddic()
     }
 
-};
-
-
-msdz.prototype.get = function (id) {
-
-    return _.find(dzs, x => x.id == id)
-};
-
-msdz.prototype.mget = function (ids) {
-
-    if (!_.isArray(ids) || ids.length < 1) return []
-    return _.filter(dzs, x => ids.indexOf(x.id) >= 0)
-};
-
-
-msdz.prototype.dict = function () {
-    return false
-
-    let keys = {}
-    for (let i in dzs) {
-
-        let name = dzs[i].name
-        let kw = _keyword(name)
-
-        if (!keys[name]) keys[name] = []
-
-        keys[name].push(dzs[i].id)
-
-        if (kw != name && kw.length > 1)
-            (keys[kw]) ? keys[kw].push(dzs[i].id) : keys[kw] = [dzs[i].id]
-    }
-
-    let dicts = []
-    for (let key in keys) {
-        let tag = "",
-            freq = 1,
-            count = _level.length
-
-        dicts.push(`${key} ${freq} ${JSON.stringify(keys[key])}`)
-    }
-
-
-    fs.write("./res/district.utf8", dicts.join("\n"))
-    log(`[./res/district.utf8] dict is builded`)
-    loaddic()
 }
+
+
+
+
+
 
 
 
 module.exports = msdz;
 
-(async () => {
+// (async () => {
+
+//     msdz.dict()
+
+//     // let a = await get("7e6b9c4e")
+//     // console.log(a)
 
 
 
-    let a = new msdz()
+//     // console.log(await msdz.match("安徽合肥"))
+//     // log(a.mget(["aa4ff08c","a4f748c2","376fb3ac","908965b3"]))
 
-    await a.load()
-    // log(a.mget(["aa4ff08c","a4f748c2","376fb3ac","908965b3"]))
+//     // const redis = require('../lib/redis')("test");
+//     // let b = redis.get(["B0FFH70TP6","B0FFFADBHE","B0FFJID5CQ","B0FFFOUKGF","B0FFILICT3","B0FFG4H4H4","B0FFGY930S","B000ABCM6I","B0FFHCP8XN","B0FFIAMJ1C","B0FFH9BWJG","B0FFKJ9P0J","B0FFI7TMO3","B0FFG72MCG","B0FFH13J07","B0FFG738ZF","B0FFINENCX","B0FFJOEMIF","B0FFG8UQGG","B0FFHC96MH","B0FFINO7OI","B0FFG8VQN7","B0FFIOUUIN","B0FFIH4MX3","B0FFHJI36P","B0FFIL91ZZ","B0FFG8VP1X","B0FFH8SJ3D","B0FFJKIKKJ","B000A80SX1","B000A87WVZ","B0FFHJ4QWP","B000A7OVNL","B0FFGJU8US"])
+//     // log(b)
 
-    // const redis = require('../lib/redis')("test");
-    // let b = redis.get(["B0FFH70TP6","B0FFFADBHE","B0FFJID5CQ","B0FFFOUKGF","B0FFILICT3","B0FFG4H4H4","B0FFGY930S","B000ABCM6I","B0FFHCP8XN","B0FFIAMJ1C","B0FFH9BWJG","B0FFKJ9P0J","B0FFI7TMO3","B0FFG72MCG","B0FFH13J07","B0FFG738ZF","B0FFINENCX","B0FFJOEMIF","B0FFG8UQGG","B0FFHC96MH","B0FFINO7OI","B0FFG8VQN7","B0FFIOUUIN","B0FFIH4MX3","B0FFHJI36P","B0FFIL91ZZ","B0FFG8VP1X","B0FFH8SJ3D","B0FFJKIKKJ","B000A80SX1","B000A87WVZ","B0FFHJ4QWP","B000A7OVNL","B0FFGJU8US"])
-    // log(b)
-
-    // let address = require("../cache/address.json")
-    // let now = new Date()
-    // for (let i in address) {
-    //     let res = a.match(address[i])
-    //     if (i != 0 && i % 10000 == 0) {
-    //         let last = new Date()
-    //         console.log(`no.${i} : Average use ${((last - now) / 10000).toFixed(2)}ms current txt is ${address[i]}`)
-    //         now = last
-    //         misc.log(res)
-    //     }
-    // }
-    // a.save()
-})()
+//     // let address = require("../cache/address.json")
+//     // let now = new Date()
+//     // for (let i in address) {
+//     //     let res = a.match(address[i])
+//     //     if (i != 0 && i % 10000 == 0) {
+//     //         let last = new Date()
+//     //         console.log(`no.${i} : Average use ${((last - now) / 10000).toFixed(2)}ms current txt is ${address[i]}`)
+//     //         now = last
+//     //         misc.log(res)
+//     //     }
+//     // }
+//     // a.save()
+// })()
 
 //结果格式： 
 /*{

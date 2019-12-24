@@ -56,9 +56,9 @@ async function preMsdz() {
 
     db.on("data", async (res) => {
         res = _.reduce(res, function (result, item) {
-            if (item.adcode) {
+            if (item.id) {
                 let o = {}
-                o[item.adcode] = JSON.stringify(item)
+                o[item.id] = JSON.stringify(item)
                 result.push(o)
             }
             return result;
@@ -74,6 +74,36 @@ async function preMsdz() {
     db.search(qs)
 
 };
+
+function builddict(){
+        let keys = {}
+        for (let i in dzs) {
+
+            let name = dzs[i].name
+            let kw = _keyword(name)
+
+            if (!keys[name]) keys[name] = []
+
+            keys[name].push(dzs[i].id)
+
+            if (kw != name && kw.length > 1)
+                (keys[kw]) ? keys[kw].push(dzs[i].id) : keys[kw] = [dzs[i].id]
+        }
+
+        let dicts = []
+        for (let key in keys) {
+            let tag = "",
+                freq = 1,
+                count = _level.length
+
+            dicts.push(`${key} ${freq} ${JSON.stringify(keys[key])}`)
+        }
+
+
+        fs.write("./res/district.utf8", dicts.join("\n"))
+        log(`[./res/district.utf8] dict is builded`)
+        loaddic()
+}
 
 
 (async () => {
