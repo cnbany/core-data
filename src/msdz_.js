@@ -4,25 +4,41 @@ http://www.stats.gov.cn/tjsj/tjbz/tjyqhdmhcxhfdm/2018/
 */
 
 
-const _level = ["country", "province", "city", "district", "street"]
-
-
+const dsl = require("bodybuilder"); //doc: https://bodybuilder.js.org/
 
 const _ = require("lodash");
-const fs = require("../lib/fs")
 
-const log = require("debug")("bany-msdz:")
 
-const redis = require('../lib/redis')("districts");
+const _level = ["country", "province", "city", "district", "street"]
+
 const config = require('config');
-const chinese = require("../lib/chinese")
-const elastic = require("../lib/elastic");
-const db = new elastic("district")
 const jieba = require("nodejieba");
+const chinese = require("../libs/chinese")
+const ES = require("../libs/elastic");
+const misc = require("../libs/misc");
+const log = misc.log
 
-loaddic = () => jieba.load(config.get("dict.districts"));
+const fs = require("../libs/fs")
+
+const db = new ES("district")
 
 
+
+function loaddic() {
+    jieba.load(config.get("dict.districts"));
+}
+loaddic()
+
+function keyword(str) {
+
+    let _postfix = ["自治县", "自治州", "自治区", "自治旗", "城区", "地区", "林区", "省", "市", "区", "县", "镇", "乡", "旗"]
+    let _nation = ["瑶族", "蒙古族", "回族", "藏族", "苗族", "维吾尔族", "彝族", "壮族", "布依族", "白族", "朝鲜族", "侗族", "哈尼族", "哈萨克族", "满族", "土家族", "瑶族", "达斡尔族", "东乡族", "高山族", "景颇族", "柯尔克孜族", "拉祜族", "纳西族", "畲族", "傣族", "黎族", "傈僳族", "仫佬族", "羌族", "水族", "土族", "佤族", "阿昌族", "布朗族", "毛南族", "普米族", "撒拉族", "塔吉克族", "锡伯族", "仡佬族", "保安族", "德昂族", "俄罗斯族", "鄂温克族", "京族", "怒族", "乌孜别克族", "裕固族", "独龙族", "鄂伦春族", "赫哲族", "基诺族", "珞巴族", "门巴族", "塔塔尔族", "汉族"]
+
+    let rePostfix = new RegExp(`(${_postfix.join("|")})$`, 'g')
+    let reNation = new RegExp(`(${_nation.join("|")})`, 'g')
+
+    return str.replace(reNation, '').replace(rePostfix, '')
+}
 
 /* 
 行政区，地址信息管理
@@ -43,18 +59,8 @@ set :   add amap key, id  => mem
 match:  
  */
 
-function _keyword(str) {
 
-    let _postfix = ["自治县", "自治州", "自治区", "自治旗", "城区", "地区", "林区", "省", "市", "区", "县", "镇", "乡", "旗"]
-    let _nation = ["瑶族", "蒙古族", "回族", "藏族", "苗族", "维吾尔族", "彝族", "壮族", "布依族", "白族", "朝鲜族", "侗族", "哈尼族", "哈萨克族", "满族", "土家族", "瑶族", "达斡尔族", "东乡族", "高山族", "景颇族", "柯尔克孜族", "拉祜族", "纳西族", "畲族", "傣族", "黎族", "傈僳族", "仫佬族", "羌族", "水族", "土族", "佤族", "阿昌族", "布朗族", "毛南族", "普米族", "撒拉族", "塔吉克族", "锡伯族", "仡佬族", "保安族", "德昂族", "俄罗斯族", "鄂温克族", "京族", "怒族", "乌孜别克族", "裕固族", "独龙族", "鄂伦春族", "赫哲族", "基诺族", "珞巴族", "门巴族", "塔塔尔族", "汉族"]
-
-    let rePostfix = new RegExp(`(${_postfix.join("|")})$`, 'g')
-    let reNation = new RegExp(`(${_nation.join("|")})`, 'g')
-
-    return str.replace(reNation, '').replace(rePostfix, '')
-}
-
-function _pickup(picks) {
+function pickup(picks) {
 
     if (!_.isArray(picks) || picks.length == 0) return ""
 
@@ -92,18 +98,43 @@ function _pickup(picks) {
 }
 
 
-
 let dzs = [],
     add = []
 
 // 地址信息管理
 function msdz() {
-    loaddic()
-
-
+    this.path = "./cache/districts.ndjson"
 }
 
 
+msdz.prototype.load = async function (auto = true) {
+
+    // auto 模式: 一天更新一次
+    let bsync = false
+    if (!fs.exist(this.path))
+        bsync = true
+    else if (!auto)
+        bsync = false
+    else {
+        let now = new Date()
+        let info = fs.info(this.path)
+        if (now.getDate() - info.mtime.getDate() >= 1) bsync = true
+    }
+
+    if (bsync) {
+        let qs = dsl()
+            .notFilter("match", "level", "street")
+            .size(5000)
+            .build();
+        qs._source = ["id", "parent", "citycode", "adcode", "name", "level", "loc", "districts", "alias"]
+        dzs = await db.search(qs)
+        log("load data from elastic.")
+        this.save()
+    } else {
+        dzs = fs.read(this.path, 'ndjson')
+        log(`load data from file [${this.path}].`)
+    }
+};
 
 msdz.prototype.save = async function () {
     // mem => file[]
@@ -172,7 +203,7 @@ msdz.prototype.match = function (location) {
     if (districts.length == 1) return districts[0]
 
     // 根据权重挑选,返回数据
-    let pickid = _pickup(picks, districts)
+    let pickid = pickup(picks, districts)
     let district = _.find(districts, x => x.id == pickid)
 
     return district
@@ -219,7 +250,7 @@ msdz.prototype.dict = function () {
     for (let i in dzs) {
 
         let name = dzs[i].name
-        let kw = _keyword(name)
+        let kw = keyword(name)
 
         if (!keys[name]) keys[name] = []
 
@@ -249,29 +280,21 @@ msdz.prototype.dict = function () {
 module.exports = msdz;
 
 (async () => {
-
-
-
     let a = new msdz()
 
-    await a.load()
-    // log(a.mget(["aa4ff08c","a4f748c2","376fb3ac","908965b3"]))
+    await a.load(true)
 
-    // const redis = require('../lib/redis')("test");
-    // let b = redis.get(["B0FFH70TP6","B0FFFADBHE","B0FFJID5CQ","B0FFFOUKGF","B0FFILICT3","B0FFG4H4H4","B0FFGY930S","B000ABCM6I","B0FFHCP8XN","B0FFIAMJ1C","B0FFH9BWJG","B0FFKJ9P0J","B0FFI7TMO3","B0FFG72MCG","B0FFH13J07","B0FFG738ZF","B0FFINENCX","B0FFJOEMIF","B0FFG8UQGG","B0FFHC96MH","B0FFINO7OI","B0FFG8VQN7","B0FFIOUUIN","B0FFIH4MX3","B0FFHJI36P","B0FFIL91ZZ","B0FFG8VP1X","B0FFH8SJ3D","B0FFJKIKKJ","B000A80SX1","B000A87WVZ","B0FFHJ4QWP","B000A7OVNL","B0FFGJU8US"])
-    // log(b)
-
-    // let address = require("../cache/address.json")
-    // let now = new Date()
-    // for (let i in address) {
-    //     let res = a.match(address[i])
-    //     if (i != 0 && i % 10000 == 0) {
-    //         let last = new Date()
-    //         console.log(`no.${i} : Average use ${((last - now) / 10000).toFixed(2)}ms current txt is ${address[i]}`)
-    //         now = last
-    //         misc.log(res)
-    //     }
-    // }
+    let address = require("../cache/address.json")
+    let now = new Date()
+    for (let i in address) {
+        let res = a.match(address[i])
+        if (i != 0 && i % 10000 == 0) {
+            let last = new Date()
+            console.log(`no.${i} : Average use ${((last - now) / 10000).toFixed(2)}ms current txt is ${address[i]}`)
+            now = last
+            misc.log(res)
+        }
+    }
     // a.save()
 })()
 
