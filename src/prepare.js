@@ -10,10 +10,11 @@ const elastic = require("../lib/elastic")
     景区ID缓存
     db (elasticsearch :scenics) => cache (redis: ids)
  */
-async function preMsid() {
-    const log = require("debug")("bany-prepare-msid:")
-    let redis = require('../lib/redis')("ids");
+async function cacheIds() {
+
     let db = new elastic("scenics")
+    let log = require("debug")("bany-prepare-ids:")
+    let redis = require('../lib/redis')("ids");
 
     let qs = {
         "query": {
@@ -35,6 +36,11 @@ async function preMsid() {
         await redis.set(res)
     })
 
+    db.on("searchdone", () => {
+        log("load data from elastic done.")
+    })
+
+    log("load data form elastic...")
     db.search(qs)
 
 };
@@ -43,9 +49,10 @@ async function preMsid() {
     行政区域数据缓存
     db (elasticsearch :district) => cache (redis: district)
  */
-async function preMsdz() {
-    const log = require("debug")("bany-prepare-msdz:")
+async function cacheDistrict() {
+
     let db = new elastic("district")
+    let log = require("debug")("bany-prepare-district:")
     let redis = require('../lib/redis')("district");
 
     let qs = dsl()
@@ -75,38 +82,54 @@ async function preMsdz() {
 
 };
 
-function builddict(){
-        let keys = {}
-        for (let i in dzs) {
 
-            let name = dzs[i].name
-            let kw = _keyword(name)
+/* 
+    景区信息缓存
+    db (elasticsearch :scenics) => cache (redis: scenics)
+ */
+async function cacheScenics() {
 
-            if (!keys[name]) keys[name] = []
+    let db = new elastic("scenics")
+    let log = require("debug")("bany-prepare-scenics:")
+    let redis = require('../lib/redis')("scenics");
 
-            keys[name].push(dzs[i].id)
+    let qs = {
+        "query": {
+            "match_all": {}
+        },
+        size: 5000
+    }
 
-            if (kw != name && kw.length > 1)
-                (keys[kw]) ? keys[kw].push(dzs[i].id) : keys[kw] = [dzs[i].id]
-        }
+    db.on("data", async (res) => {
+        
+        res = _.reduce(res, function (result, item) {
+            if (item.id) {
+                let o = {}
+                o[item.id] = JSON.stringify(item)
+                result.push(o)
+            }
+            return result;
+        }, [])
+        await redis.set(res)
+    })
 
-        let dicts = []
-        for (let key in keys) {
-            let tag = "",
-                freq = 1,
-                count = _level.length
+    db.on("searchdone", () => {
+        log("load data from elastic done.")
+    })
 
-            dicts.push(`${key} ${freq} ${JSON.stringify(keys[key])}`)
-        }
+    log("load data form elastic...")
+    db.search(qs)
 
-
-        fs.write("./res/district.utf8", dicts.join("\n"))
-        log(`[./res/district.utf8] dict is builded`)
-        loaddic()
-}
-
+};
 
 (async () => {
-    await preMsid()
-    await preMsdz()
+    // await cacheIds()
+    // await cacheDistrict()
+    // await cacheScenics()
+    log(1)
+    let redis = require('../lib/redis')("scenics");
+    log(2)
+    await redis.get(["3a9444d2c0c1"])
+    log(3)
+
 })()

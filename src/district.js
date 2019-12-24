@@ -106,7 +106,7 @@ function _pickup(picks) {
     return picks[0].id
 }
 
-async function get(keys) {
+async function _get(keys) {
 
     let res = await redis.get(keys)
 
@@ -125,10 +125,10 @@ async function get(keys) {
 
 // 地址信息管理
 
-let msdz = {
+let district = {
 
     get: async function (keys) {
-        return await get(keys)
+        return await _get(keys)
     },
 
     match: async function (location) {
@@ -164,7 +164,7 @@ let msdz = {
         let ids = _.flatMap(picks, "id")
         // let districts = _.filter(dzs, x => ids.indexOf(x.id) >= 0)
 
-        let districts = await get(ids)
+        let districts = await _get(ids)
 
         for (let i in picks)
             picks[i].districts = _.find(districts, x => x.id == picks[i].id).districts || {}
@@ -183,7 +183,7 @@ let msdz = {
     dict: async function () {
 
         let keys = {}
-        let dzs = await get()
+        let dzs = await _get()
         for (let i in dzs) {
 
             let name = dzs[i].name
@@ -209,13 +209,14 @@ let msdz = {
 
         fs.write("./res/jieba_district.utf8", dicts.join("\n"))
         log(`[./res/jieba_district.utf8] dict is builded`)
+        
         loaddic()
     }
 
 }
 
 
-module.exports = msdz;
+module.exports = district;
 
 // (async () => {
 
