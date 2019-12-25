@@ -7,6 +7,7 @@ cache*.json
 script/dist
 logs
 *.log
+*.utf8
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
