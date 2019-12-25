@@ -37,15 +37,15 @@ function _normal(str) {
 function _pickup(tags, adcode) {
 
 
-    adcode = (adcode) ? adcode.replace("0", "") : null
+    adcode = (adcode) ? adcode.replace(/0*$/, "") : null
     let picks = {}
 
     for (let i in tags) {
         if (!_.startsWith(tags[i].tag, '[')) continue
         let ids = JSON.parse(tags[i].tag)
 
-        // if (adcode)
-        //     ids = _.filter(ids, x => _.startsWith(x.id, adcode))
+        if (adcode)
+            ids = _.filter(ids, x => _.startsWith(x, adcode))
 
         ids = _.flatMap(ids, x => x.split(":")[1])
 
@@ -53,11 +53,15 @@ function _pickup(tags, adcode) {
 
         for (let id of ids)
             picks[id] = (picks[id]) ? {
-                c: picks[id].c + 1,
-                w: picks[id].w + w
+                m: picks[id].m + 1,
+                w: picks[id].w + w,
+                s: picks[id].s,
+                ms: picks[id].ms+","+tags[i].word
             } : {
-                c: 1,
-                w: w
+                m: 1,
+                w: w,
+                s: tags.length,
+                ms: tags[i].word
             }
     }
 
@@ -104,7 +108,7 @@ let scenic = {
 
         log("=>", str)
         log(name)
-        log(jieba.cut(name, true))
+        log(jieba.cut(name,true))
         log(picks)
         log(ids)
         log(scenics)
@@ -163,12 +167,11 @@ module.exports = scenic;
 // jd.update()
 (async () => {
     // log(await scenic.get(["fe6de9c3e7eb","d93e6d5408d4"]))
-
-    await scenic.match("三门峡天鹅湖国家城市湿地公园", {
-        adcode: "411300"
-    })
+    let opt = {
+        adcode: "411628"
+    }
+    await scenic.match("周口老子故里旅游区",opt)
     // await scenic.dict()
-
 
 })()
 
