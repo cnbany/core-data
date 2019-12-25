@@ -126,10 +126,10 @@ async function cacheScenics() {
     // await cacheIds()
     // await cacheDistrict()
     // await cacheScenics()
-    log(1)
-    let redis = require('../lib/redis')("scenics");
-    log(2)
-    await redis.get(["3a9444d2c0c1"])
-    log(3)
+    // log(1)
+    // let redis = require('../lib/redis')("scenics");
+    // log(2)
+    // await redis.get(["3a9444d2c0c1"])
+    // log(3)
 
 })()

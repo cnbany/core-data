@@ -11,37 +11,19 @@ const _level = ["country", "province", "city", "district", "street"]
 const _ = require("lodash");
 const fs = require("../lib/fs")
 
-const log = require("debug")("bany-msdz:")
+const log = require("debug")("bany-distric:")
 
-const redis = require('../lib/redis')("district");
+const jieba = require("nodejieba");
+const redis = require('../lib/redis')("district","json");
 const config = require('config');
 const chinese = require("../lib/chinese")
 const elastic = require("../lib/elastic");
 const db = new elastic("district")
-const jieba = require("nodejieba");
 
 loaddic = () => jieba.load(config.get("dict.districts"));
 loaddic()
 
 
-/* 
-行政区，地址信息管理
-
-syncdown : 刷新本地缓存数据  elastic(src) => mem => file
-syncup : 
-upload(data):  更新服务器数据  params => elastic
-
-// sync(dirct => down) : 向下同步数据  elastic => mem => file
-// sync(dirct => up)   : 向上同步数据  mem =>  elastic
-
-load(auto) : 加载  file/elastic => mem
-dump : 加载  mem => file
-
-get :   district key => return data
-set :   add amap key, id  => mem
-
-match:  
- */
 
 function _keyword(str) {
 
@@ -110,14 +92,6 @@ async function _get(keys) {
 
     let res = await redis.get(keys)
 
-    if (_.isArray(res) || _.isObject(res))
-        for (let i in res)
-            res[i] = JSON.parse(res[i])
-
-    else if (_.isString(res) == 'string')
-        res = JSON.parse(res)
-
-    log("get: is done !")
 
     return res
 }
@@ -128,7 +102,7 @@ async function _get(keys) {
 let district = {
 
     get: async function (keys) {
-        return await _get(keys)
+        return await redis.get(keys)
     },
 
     match: async function (location) {
@@ -164,7 +138,7 @@ let district = {
         let ids = _.flatMap(picks, "id")
         // let districts = _.filter(dzs, x => ids.indexOf(x.id) >= 0)
 
-        let districts = await _get(ids)
+        let districts = await redis.get(ids)   
 
         for (let i in picks)
             picks[i].districts = _.find(districts, x => x.id == picks[i].id).districts || {}
@@ -183,7 +157,7 @@ let district = {
     dict: async function () {
 
         let keys = {}
-        let dzs = await _get()
+        let dzs = await redis.get()
         for (let i in dzs) {
 
             let name = dzs[i].name
@@ -219,7 +193,11 @@ let district = {
 module.exports = district;
 
 // (async () => {
-
+//     log(await district.match("保定"))
+//     log(await redis.get("7e6b9c4e"))
+//     log(await redis.get(["aa4ff08c","a4f748c2","376fb3ac","908965b3"]))
+    
+// })()
 //     msdz.dict()
 
 //     // let a = await get("7e6b9c4e")
@@ -227,7 +205,6 @@ module.exports = district;
 
 
 
-//     // console.log(await msdz.match("安徽合肥"))
 //     // log(a.mget(["aa4ff08c","a4f748c2","376fb3ac","908965b3"]))
 
 //     // const redis = require('../lib/redis')("test");
