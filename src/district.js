@@ -192,12 +192,12 @@ let district = {
 
 module.exports = district;
 
-// (async () => {
-//     log(await district.match("保定"))
-//     log(await redis.get("7e6b9c4e"))
-//     log(await redis.get(["aa4ff08c","a4f748c2","376fb3ac","908965b3"]))
+(async () => {
+    log(await district.match("保定"))
+    // log(await redis.get("7e6b9c4e"))
+    // log(await redis.get(["aa4ff08c","a4f748c2","376fb3ac","908965b3"]))
     
-// })()
+})()
 //     msdz.dict()
 
 //     // let a = await get("7e6b9c4e")

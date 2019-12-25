@@ -100,6 +100,8 @@ async function cacheScenics() {
         size: 5000
     }
 
+    qs._source = ["id", "aoi", "name", "address", "classify", "comment", "scenic", "adcode", "alias","external"]
+
     db.on("data", async (res) => {
         
         res = _.reduce(res, function (result, item) {
@@ -123,9 +125,9 @@ async function cacheScenics() {
 };
 
 (async () => {
-    // await cacheIds()
-    // await cacheDistrict()
-    // await cacheScenics()
+    await cacheIds()
+    await cacheDistrict()
+    await cacheScenics()
     // log(1)
     // let redis = require('../lib/redis')("scenics");
     // log(2)
