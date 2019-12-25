@@ -89,7 +89,7 @@ function _pickup(tags, adcode) {
 
 let scenic = {
     get: async function (keys) {
-        return await redis.get(keys)
+        return await redis.hget(keys)
     },
 
     match: async (str, opt) => {
@@ -104,7 +104,7 @@ let scenic = {
             tags = jieba.tag(name),
             picks = _pickup(tags, adcode),
             ids = _.map(picks, (x) => x.id),
-            scenics = await redis.get(ids)
+            scenics = await redis.hget(ids)
 
         log("=>", str)
         log(name)
@@ -121,7 +121,7 @@ let scenic = {
         let keywords = {},
             count = 0
 
-        let scenics = await redis.get("all")
+        let scenics = await redis.hget("all")
 
         lineFn = (o) => {
             let id = o.id,
@@ -172,6 +172,8 @@ module.exports = scenic;
     }
     await scenic.match("周口老子故里旅游区",opt)
     // await scenic.dict()
+
+    
 
 })()
 

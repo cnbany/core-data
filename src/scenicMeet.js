@@ -1,28 +1,19 @@
+process.env.DEBUG = "bany*"
 const _ = require("loadsh")
-// const MDD = require("../bany/district")
-// const misc = require("../libs/misc")
-// const mdd = new MDD()
 
-const fs = require('../../libs/fs');
-const misc = require('../../libs/misc');
-const Msdz = require("../msdz");
+const fs = require('../lib/fs');
+const log = require("debug")("bany-scenic-meet:")
+const dist = require("./district");
+const redis = require('../lib/redis')("meet", "json");
 
-
+String.prototype.stripHTML = function () {
+    var reTag = /<(?:.|\s)*?>/g;
+    return this.replace(reTag, "");
+}
 
 
 // const idms = new Idms("scenics", 12)
 
-
-const log = misc.log,
-    msdz = new Msdz()
-
-
-
-function getData() {
-    let ss = _.flatMap(fs.read("./cache/crawl/meet.ndjson", "ndjson"), "_source")
-    let res = ss.filter(x => x.cls == "aoi")
-    return res
-}
 
 function parse(detail) {
 
@@ -56,11 +47,12 @@ function group(result) {
         // console.log(result[key].length)
         fs.write(`./cache/meet/meet.${key}.ndjson`, result[key])
     }
-}
+};
+
 (async () => {
-    await msdz.load()
-    let scenics = getData()
-    let result = {}
+
+    let scenics = await redis.hget("all")
+    let result = []
     for (let i in scenics) {
         if (i != 0 && i % 100 == 0)
             console.log(i + ":" + scenics[i].txt.name)
@@ -68,11 +60,11 @@ function group(result) {
         let detail = parse(scenics[i].txt.detail)
         let dd = detail.find(x => x.key == "位置")
         // 获取标准行政区信息
-        let district = msdz.match(dd.val)
+        let district = await dist.match(dd.val)
         // if (district && district.districts && district.districts.country) delete district.districts.country
-        delete scenics[i].txt.detail
-        delete scenics[i].txt.subpoi
-        delete scenics[i].txt.crw
+        // delete scenics[i].txt.detail
+        // delete scenics[i].txt.subpoi
+        // delete scenics[i].txt.crw
         scenics[i].txt.img = _.uniqBy(scenics[i].txt.img, "url")
         scenics[i].txt.url = "https://www.meet99.com" + scenics[i].txt.url
 
@@ -83,15 +75,17 @@ function group(result) {
 
 
         // 按省份分组
-        let province = (district.districts && district.districts.province) ? district.districts.province.adcode : "000000"
-        if (!result[province]) result[province] = []
-        result[province].push(scenics[i].txt)
+        result.push(scenics[i].txt)
     }
-    // 按省份分组保存ndjson文件
-    group(result)
+
 
     // 保存一个ndjson文件
     save(result)
     // console.log(1)
 
 })()
+
+//cache meet data
+// (async ()=>{
+//   await  cacheMeets()
+// })()

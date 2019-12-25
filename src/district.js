@@ -90,7 +90,7 @@ function _pickup(picks) {
 
 async function _get(keys) {
 
-    let res = await redis.get(keys)
+    let res = await redis.hget(keys)
 
 
     return res
@@ -102,7 +102,7 @@ async function _get(keys) {
 let district = {
 
     get: async function (keys) {
-        return await redis.get(keys)
+        return await redis.hget(keys)
     },
 
     match: async function (location) {
@@ -138,7 +138,7 @@ let district = {
         let ids = _.flatMap(picks, "id")
         // let districts = _.filter(dzs, x => ids.indexOf(x.id) >= 0)
 
-        let districts = await redis.get(ids)   
+        let districts = await redis.hget(ids)   
 
         for (let i in picks)
             picks[i].districts = _.find(districts, x => x.id == picks[i].id).districts || {}
@@ -157,7 +157,7 @@ let district = {
     dict: async function () {
 
         let keys = {}
-        let dzs = await redis.get()
+        let dzs = await redis.hget()
         for (let i in dzs) {
 
             let name = dzs[i].name
@@ -192,12 +192,12 @@ let district = {
 
 module.exports = district;
 
-(async () => {
-    log(await district.match("保定"))
-    // log(await redis.get("7e6b9c4e"))
-    // log(await redis.get(["aa4ff08c","a4f748c2","376fb3ac","908965b3"]))
+// (async () => {
+//     log(await district.match("保定"))
+//     // log(await redis.hget("7e6b9c4e"))
+//     // log(await redis.hget(["aa4ff08c","a4f748c2","376fb3ac","908965b3"]))
     
-})()
+// })()
 //     msdz.dict()
 
 //     // let a = await get("7e6b9c4e")
@@ -208,7 +208,7 @@ module.exports = district;
 //     // log(a.mget(["aa4ff08c","a4f748c2","376fb3ac","908965b3"]))
 
 //     // const redis = require('../lib/redis')("test");
-//     // let b = redis.get(["B0FFH70TP6","B0FFFADBHE","B0FFJID5CQ","B0FFFOUKGF","B0FFILICT3","B0FFG4H4H4","B0FFGY930S","B000ABCM6I","B0FFHCP8XN","B0FFIAMJ1C","B0FFH9BWJG","B0FFKJ9P0J","B0FFI7TMO3","B0FFG72MCG","B0FFH13J07","B0FFG738ZF","B0FFINENCX","B0FFJOEMIF","B0FFG8UQGG","B0FFHC96MH","B0FFINO7OI","B0FFG8VQN7","B0FFIOUUIN","B0FFIH4MX3","B0FFHJI36P","B0FFIL91ZZ","B0FFG8VP1X","B0FFH8SJ3D","B0FFJKIKKJ","B000A80SX1","B000A87WVZ","B0FFHJ4QWP","B000A7OVNL","B0FFGJU8US"])
+//     // let b = redis.hget(["B0FFH70TP6","B0FFFADBHE","B0FFJID5CQ","B0FFFOUKGF","B0FFILICT3","B0FFG4H4H4","B0FFGY930S","B000ABCM6I","B0FFHCP8XN","B0FFIAMJ1C","B0FFH9BWJG","B0FFKJ9P0J","B0FFI7TMO3","B0FFG72MCG","B0FFH13J07","B0FFG738ZF","B0FFINENCX","B0FFJOEMIF","B0FFG8UQGG","B0FFHC96MH","B0FFINO7OI","B0FFG8VQN7","B0FFIOUUIN","B0FFIH4MX3","B0FFHJI36P","B0FFIL91ZZ","B0FFG8VP1X","B0FFH8SJ3D","B0FFJKIKKJ","B000A80SX1","B000A87WVZ","B0FFHJ4QWP","B000A7OVNL","B0FFGJU8US"])
 //     // log(b)
 
 //     // let address = require("../cache/address.json")

@@ -13,7 +13,7 @@ describe('redis', function () {
                     "k6": "v2"
                 }
             ]
-            let res = await redis.set(kvs)
+            let res = await redis.hset(kvs)
             console.log(JSON.stringify(res))
 
             kvs = {
@@ -21,20 +21,20 @@ describe('redis', function () {
                 "k8": "v2"
             }
 
-            res = await redis.set(kvs)
+            res = await redis.hset(kvs)
             console.log(JSON.stringify(res))
 
             res.should.have.length(2)
         });
 
         it('#get', async function () {
-            let res = await redis.get()
+            let res = await redis.hget()
             console.log(JSON.stringify(res))
-            res = await redis.get("k5")
+            res = await redis.hget("k5")
             console.log(JSON.stringify(res))
-            res = await redis.get(["k5", "k6"])
+            res = await redis.hget(["k5", "k6"])
             console.log(JSON.stringify(res))
-            res = await redis.get(["k5"])
+            res = await redis.hget(["k5"])
             console.log(JSON.stringify(res))
         });
 

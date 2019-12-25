@@ -33,7 +33,7 @@ async function cacheIds() {
             }
             return result;
         }, [])
-        await redis.set(res)
+        await redis.hset(res)
     })
 
     db.on("searchdone", () => {
@@ -70,7 +70,7 @@ async function cacheDistrict() {
             }
             return result;
         }, [])
-        await redis.set(res)
+        await redis.hset(res)
     })
 
     db.on("searchdone", () => {
@@ -100,10 +100,10 @@ async function cacheScenics() {
         size: 5000
     }
 
-    qs._source = ["id", "aoi", "name", "address", "classify", "comment", "scenic", "adcode", "alias","external"]
+    qs._source = ["id", "aoi", "name", "address", "classify", "comment", "scenic", "adcode", "alias", "external"]
 
     db.on("data", async (res) => {
-        
+
         res = _.reduce(res, function (result, item) {
             if (item.id) {
                 let o = {}
@@ -112,7 +112,7 @@ async function cacheScenics() {
             }
             return result;
         }, [])
-        await redis.set(res)
+        await redis.hset(res)
     })
 
     db.on("searchdone", () => {
@@ -124,14 +124,53 @@ async function cacheScenics() {
 
 };
 
+
+
+async function cacheMeets() {
+    let db = new elastic("meet_ibc"),
+        log = require("debug")("bany-prepare-meet:"),
+        redis = require('../lib/redis')("meets"),
+        ids = []
+
+    let qs = dsl()
+        .notFilter("match", "cls", "mdd")
+        .size(5000)
+        .build();
+
+    db.on("data", async (res) => {
+
+        res = _.reduce(res, function (result, item) {
+            if (item.id) {
+                let o = {}
+                o[item.id] = JSON.stringify(item)
+                result.push(o)
+                ids.push(item.id)
+            }
+            return result;
+        }, [])
+
+        await redis.hset(res)
+    })
+
+    db.on("searchdone", () => {
+        log("load data from elastic done.")
+        redis.set("meetids", ids.join(","))
+    })
+
+    log("load data form elastic...")
+    db.search(qs)
+
+};
+
 (async () => {
     await cacheIds()
     await cacheDistrict()
     await cacheScenics()
+    await cacheMeets()
     // log(1)
     // let redis = require('../lib/redis')("scenics");
     // log(2)
-    // await redis.get(["3a9444d2c0c1"])
+    // await redis.hget(["3a9444d2c0c1"])
     // log(3)
 
 })()
