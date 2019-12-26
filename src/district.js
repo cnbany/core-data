@@ -14,7 +14,7 @@ const fs = require("../lib/fs")
 const log = require("debug")("bany-distric:")
 
 const jieba = require("nodejieba");
-const redis = require('../lib/redis')("district","json");
+const redis = require('../lib/redis')("district", "json");
 const config = require('config');
 const chinese = require("../lib/chinese")
 const elastic = require("../lib/elastic");
@@ -92,7 +92,6 @@ async function _get(keys) {
 
     let res = await redis.hget(keys)
 
-
     return res
 }
 
@@ -100,6 +99,9 @@ async function _get(keys) {
 // 地址信息管理
 
 let district = {
+    done: () => {
+        redis.done()
+    },
 
     get: async function (keys) {
         return await redis.hget(keys)
@@ -138,7 +140,7 @@ let district = {
         let ids = _.flatMap(picks, "id")
         // let districts = _.filter(dzs, x => ids.indexOf(x.id) >= 0)
 
-        let districts = await redis.hget(ids)   
+        let districts = await redis.hget(ids)
 
         for (let i in picks)
             picks[i].districts = _.find(districts, x => x.id == picks[i].id).districts || {}
@@ -183,7 +185,7 @@ let district = {
 
         fs.write("./res/jieba_district.utf8", dicts.join("\n"))
         log(`[./res/jieba_district.utf8] dict is builded`)
-        
+
         loaddic()
     }
 
@@ -196,7 +198,7 @@ module.exports = district;
 //     log(await district.match("保定"))
 //     // log(await redis.hget("7e6b9c4e"))
 //     // log(await redis.hget(["aa4ff08c","a4f748c2","376fb3ac","908965b3"]))
-    
+
 // })()
 //     msdz.dict()
 

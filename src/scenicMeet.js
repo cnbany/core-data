@@ -1,18 +1,8 @@
-process.env.DEBUG = "bany*"
-const _ = require("loadsh")
+process.env.DEBUG = "bany-scenic*"
 
+const _ = require("loadsh")
 const fs = require('../lib/fs');
 const log = require("debug")("bany-scenic-meet:")
-const dist = require("./district");
-const redis = require('../lib/redis')("meet", "json");
-
-String.prototype.stripHTML = function () {
-    var reTag = /<(?:.|\s)*?>/g;
-    return this.replace(reTag, "");
-}
-
-
-// const idms = new Idms("scenics", 12)
 
 
 function parse(detail) {
@@ -24,68 +14,82 @@ function parse(detail) {
         if (kv.length == 2 && kv[0].trim() != "" && kv[1].trim() != "" && !/(天气)|(评论)|(地图)|(游览图)/.test(kv[0]))
             res.push({
                 key: kv[0].trim().replace("：", "").replace(/(.*)门票价格/, "门票价格").replace("景区", "").replace("学校", ""),
-                val: kv[1].trim().stripHTML()
+                val: kv[1].trim().replace(/<(?:.|\s)*?>/g, "") //strip HTML Tag
             })
     }
     return res
 };
 
 
-function save(result) {
-    let opt = 'w'
-    let first = true
-    for (let key of Object.keys(result)) {
-        // console.log(result[key].length)
-        fs.write(`./cache/meet/meet.all.ndjson`, result[key], opt)
-        if (opt == 'w') opt = 'a'
+// step 1 : 数据预处理
+async function getData() {
+    log("(getData) begin at", new Date())
+
+    let source = require('../lib/redis')("meets", "json"),
+        scenics = (await source.get("meetids")).split(","),
+        result = []
+    // let scenics = await redis.hget("all"),
+    log(`(getData) get list count:`, scenics.length)
+
+    for (let i in scenics) {
+
+        let scenic = await source.hget(scenics[i])
+
+        // 详细信息分析
+        let detail = parse(scenic.txt.detail)
+
+        scenic.txt.intros = detail
+        scenic.txt.img = _.uniqBy(scenic.txt.img, "url")
+        scenic.txt.url = "https://www.meet99.com" + scenic.txt.url
+
+        delete scenic.txt.detail
+        delete scenic.txt.subpoi
+
+        result.push(scenic.txt)
     }
+
+    source.done()
+    log("(getData) end at", new Date())
+    return result
 }
 
-function group(result) {
+// step 2 : 获取 adcode 
+async function getAdcode(scenics) {
 
-    for (let key of Object.keys(result)) {
-        // console.log(result[key].length)
-        fs.write(`./cache/meet/meet.${key}.ndjson`, result[key])
-    }
-};
+    log("(getAdcode) begin at", new Date())
+    let districts = require("./district");
+    log("(getAdcode) load dictionary done!")
 
-(async () => {
-
-    let scenics = await redis.hget("all")
-    let result = []
     for (let i in scenics) {
-        if (i != 0 && i % 100 == 0)
-            console.log(i + ":" + scenics[i].txt.name)
-        // 详细信息分析
-        let detail = parse(scenics[i].txt.detail)
-        let dd = detail.find(x => x.key == "位置")
-        // 获取标准行政区信息
-        let district = await dist.match(dd.val)
-        // if (district && district.districts && district.districts.country) delete district.districts.country
-        // delete scenics[i].txt.detail
-        // delete scenics[i].txt.subpoi
-        // delete scenics[i].txt.crw
-        scenics[i].txt.img = _.uniqBy(scenics[i].txt.img, "url")
-        scenics[i].txt.url = "https://www.meet99.com" + scenics[i].txt.url
-
-        scenics[i].txt.intros = detail
-
-        scenics[i].txt.adcode = district.adcode
-        scenics[i].txt.districts = district.districts
-
-
-        // 按省份分组
-        result.push(scenics[i].txt)
+        let dz = scenics[i].intros.find(x => x.key == "位置")
+        let district = await districts.match(dz.val)
+        scenics[i].adcode = district.adcode
     }
+    districts.done()
+    log("(getAdcode) end at", new Date())
+    return scenics
+}
 
+// step 3: 匹配景区信息
+async  function getScenic(scenics){
+    let scenic = require("./scenic");
+    scenics = scenics || fs.read(`./cache/meet/meet.all.ndjson`)
+    for (let i = 0 ;i< 50; i++){
+        await scenic.match(scenics[i].name,{adcode: scenics[i].adcode})
+    }
+    scenic.done()
+}
 
-    // 保存一个ndjson文件
-    save(result)
-    // console.log(1)
-
-})()
 
 //cache meet data
-// (async ()=>{
-//   await  cacheMeets()
-// })()
+(async () => {
+    // let res = await getData()
+    // res = await getAdcode(res)
+    await getScenic()
+    // 保存一个ndjson文件
+    // fs.write(`./cache/meet/meet.all.ndjson`, res)
+    log("save done!")
+
+
+    log(1)
+})()

@@ -36,7 +36,6 @@ function _normal(str) {
 
 function _pickup(tags, adcode) {
 
-
     adcode = (adcode) ? adcode.replace(/0*$/, "") : null
     let picks = {}
 
@@ -56,7 +55,7 @@ function _pickup(tags, adcode) {
                 m: picks[id].m + 1,
                 w: picks[id].w + w,
                 s: picks[id].s,
-                ms: picks[id].ms+","+tags[i].word
+                ms: picks[id].ms + "," + tags[i].word
             } : {
                 m: 1,
                 w: w,
@@ -88,6 +87,9 @@ function _pickup(tags, adcode) {
 
 
 let scenic = {
+    done: () => {
+        redis.done()
+    },
     get: async function (keys) {
         return await redis.hget(keys)
     },
@@ -105,12 +107,16 @@ let scenic = {
             picks = _pickup(tags, adcode),
             ids = _.map(picks, (x) => x.id),
             scenics = await redis.hget(ids)
+        if (scenics && Array.isArray(scenics))
+            scenics.sort(x => -x.name.length)
+
+
 
         log("=>", str)
         log(name)
-        log(jieba.cut(name,true))
-        log(picks)
-        log(ids)
+        log(jieba.cut(name, true))
+        // log(picks)
+        // log(ids)
         log(scenics)
     },
 
@@ -165,17 +171,17 @@ module.exports = scenic;
 
 // jd.buildDict()
 // jd.update()
-(async () => {
-    // log(await scenic.get(["fe6de9c3e7eb","d93e6d5408d4"]))
-    let opt = {
-        adcode: "411628"
-    }
-    await scenic.match("周口老子故里旅游区",opt)
-    // await scenic.dict()
+// (async () => {
+// //     // log(await scenic.get(["fe6de9c3e7eb","d93e6d5408d4"]))
+// //     let opt = {
+// //         adcode: "411628"
+// //     }
+// //     await scenic.match("周口老子故里旅游区",opt)
+//     await scenic.dict()
 
-    
+//     redis.done()
 
-})()
+// })()
 
 
 

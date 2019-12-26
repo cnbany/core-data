@@ -38,6 +38,7 @@ async function cacheIds() {
 
     db.on("searchdone", () => {
         log("load data from elastic done.")
+        redis.done()
     })
 
     log("load data form elastic...")
@@ -75,6 +76,7 @@ async function cacheDistrict() {
 
     db.on("searchdone", () => {
         log("load data from elastic done.")
+        redis.done()
     })
 
     log("load data form elastic...")
@@ -117,6 +119,7 @@ async function cacheScenics() {
 
     db.on("searchdone", () => {
         log("load data from elastic done.")
+        redis.done()
     })
 
     log("load data form elastic...")
@@ -152,9 +155,10 @@ async function cacheMeets() {
         await redis.hset(res)
     })
 
-    db.on("searchdone", () => {
+    db.on("searchdone", async () => {
         log("load data from elastic done.")
-        redis.set("meetids", ids.join(","))
+        await redis.set("meetids", ids.join(","))
+        redis.done()
     })
 
     log("load data form elastic...")
@@ -163,9 +167,9 @@ async function cacheMeets() {
 };
 
 (async () => {
-    await cacheIds()
-    await cacheDistrict()
-    await cacheScenics()
+    // await cacheIds()
+    // await cacheDistrict()
+    // await cacheScenics()
     await cacheMeets()
     // log(1)
     // let redis = require('../lib/redis')("scenics");
