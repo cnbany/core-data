@@ -1,9 +1,11 @@
 process.env.DEBUG = "bany-scenic*"
 
-const _ = require("loadsh")
-const fs = require('../lib/fs');
-const log = require("debug")("bany-scenic-meet:")
+const _ = require("loadsh"),
+    fs = require('../lib/fs'),
+    log = require("debug")("bany-scenic-meet:"),
+    elastic = require("../lib/elastic")
 
+let db = new elastic("meet_ibc")
 
 function parse(detail) {
 
@@ -19,6 +21,19 @@ function parse(detail) {
     }
     return res
 };
+
+
+// function run() {
+//     let qs = dsl()
+//         .filter("match", "cls", "aoi")
+//         .notFilter("range", "crw.amap", {
+//             gt: new Date().valueOf() - 8640000000
+//         })
+//         .size(1000)
+//         .build();
+
+//     db.search(qs)
+// }
 
 
 // step 1 : 数据预处理
@@ -75,7 +90,8 @@ async function getScenic(scenics) {
     let scenic = require("./scenic");
     scenics = scenics || fs.read(`./cache/meet/meet.all.ndjson`)
     for (let i = 100; i < 150; i++) {
-        await scenic.match(scenics[i].name, scenics[i].adcode)
+        let ma = await scenic.match(scenics[i].name, scenics[i].adcode)
+        log(i)
     }
     scenic.done()
 }

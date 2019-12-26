@@ -71,13 +71,11 @@ const scenic = {
 
         let url = "http://restapi.amap.com/v3/place/text?" + qs.stringify(params)
 
-        const {
-            body
-        } = await got.get(url);
+        const res = await got.get(url);
 
-        let res = await parse(body)
-        log(`match: is done. find `, res.length)
-        return res
+        let result = await parse(res.body)
+        log(`match: is done. find `, result.length)
+        return result
     },
 }
 
