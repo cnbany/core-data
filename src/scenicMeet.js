@@ -71,14 +71,15 @@ async function getAdcode(scenics) {
 }
 
 // step 3: 匹配景区信息
-async  function getScenic(scenics){
+async function getScenic(scenics) {
     let scenic = require("./scenic");
     scenics = scenics || fs.read(`./cache/meet/meet.all.ndjson`)
-    for (let i = 0 ;i< 50; i++){
-        await scenic.match(scenics[i].name,{adcode: scenics[i].adcode})
+    for (let i = 100; i < 150; i++) {
+        await scenic.match(scenics[i].name, scenics[i].adcode)
     }
     scenic.done()
 }
+
 
 
 //cache meet data
