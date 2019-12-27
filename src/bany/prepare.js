@@ -4,7 +4,7 @@ const _ = require("lodash");
 const log = require("debug")("bany-prepare:")
 const dsl = require("bodybuilder"); //doc: https://bodybuilder.js.org/
 
-const elastic = require("../lib/elastic")
+const elastic = require("../../lib/elastic")
 
 /* 
     景区ID缓存
@@ -14,7 +14,7 @@ async function cacheIds() {
 
     let db = new elastic("scenics")
     let log = require("debug")("bany-prepare-ids:")
-    let redis = require('../lib/redis')("ids");
+    let redis = require('../../lib/redis')("ids");
 
     let qs = {
         "query": {
@@ -54,7 +54,7 @@ async function cacheDistrict() {
 
     let db = new elastic("district")
     let log = require("debug")("bany-prepare-district:")
-    let redis = require('../lib/redis')("district");
+    let redis = require('../../lib/redis')("district");
 
     let qs = dsl()
         .notFilter("match", "level", "street")
@@ -93,7 +93,7 @@ async function cacheScenics() {
 
     let db = new elastic("scenics")
     let log = require("debug")("bany-prepare-scenics:")
-    let redis = require('../lib/redis')("scenics");
+    let redis = require('../../lib/redis')("scenics");
 
     let qs = {
         "query": {
@@ -129,48 +129,12 @@ async function cacheScenics() {
 
 
 
-async function cacheMeets() {
-    let db = new elastic("meet_ibc"),
-        log = require("debug")("bany-prepare-meet:"),
-        redis = require('../lib/redis')("meets"),
-        ids = []
-
-    let qs = dsl()
-        .notFilter("match", "cls", "mdd")
-        .size(5000)
-        .build();
-
-    db.on("data", async (res) => {
-
-        res = _.reduce(res, function (result, item) {
-            if (item.id) {
-                let o = {}
-                o[item.id] = JSON.stringify(item)
-                result.push(o)
-                ids.push(item.id)
-            }
-            return result;
-        }, [])
-
-        await redis.hset(res)
-    })
-
-    db.on("searchdone", async () => {
-        log("load data from elastic done.")
-        await redis.set("meetids", ids.join(","))
-        redis.done()
-    })
-
-    log("load data form elastic...")
-    db.search(qs)
-
-};
 
 (async () => {
     // await cacheIds()
     // await cacheDistrict()
     // await cacheScenics()
-    await cacheMeets()
+    // await cacheMeets()
     // log(1)
     // let redis = require('../lib/redis')("scenics");
     // log(2)

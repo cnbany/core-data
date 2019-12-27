@@ -9,15 +9,15 @@ const _level = ["country", "province", "city", "district", "street"]
 
 
 const _ = require("lodash");
-const fs = require("../lib/fs")
+const fs = require("../../lib/fs")
 
 const log = require("debug")("bany-distric:")
 
 const jieba = require("nodejieba");
-const redis = require('../lib/redis')("district", "json");
+const redis = require('../../lib/redis')("district", "json");
 const config = require('config');
-const chinese = require("../lib/chinese")
-const elastic = require("../lib/elastic");
+const chinese = require("../../lib/chinese")
+const elastic = require("../../lib/elastic");
 const db = new elastic("district")
 
 loaddic = () => jieba.load(config.get("dict.districts"));
