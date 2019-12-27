@@ -72,6 +72,7 @@ async function match(name, city) {
     const res = await got.get(url);
 
     let result = []
+
     if (!res.body.pois ){
         log("error:",url)
         res.body.pois = []
@@ -95,9 +96,6 @@ async function match(name, city) {
                 }
             }
 
-        // log(poi.id,poi.name)
-        // log(id)
-        // log(txt)
         result.push(txt)
     }
 
@@ -125,7 +123,7 @@ const scenic = {
         if (dst)
             dst = merge(dst, src)
 
-        redis.hset(dst.id, JSON.stringify(dst))
+        await redis.hset(dst.id, JSON.stringify(dst))
     },
 
 
