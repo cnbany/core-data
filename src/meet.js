@@ -3,10 +3,10 @@ process.env.DEBUG = "bany-scenic*"
 const _ = require("loadsh"),
     fs = require('../lib/fs'),
     log = require("debug")("bany-scenic-meet:"),
-    elastic = require("../lib/elastic"),
     dsl = require("bodybuilder"), //doc: https://bodybuilder.js.org/
-    districts = require("./bany/district"),
-    scenics = require("./bany/scenic");
+    mdd = require("./bany/district"),
+    poi = require("./bany/scenic"),
+    elastic = require("../lib/elastic")
 
 
 let db = new elastic("meet_ibc")
@@ -29,8 +29,7 @@ async function parse(scenic) {
     let detail = parseDetail(scenic.txt.detail),
         qualify = (detail["资质"]) ? (detail["资质"]).split("、") : undefined,
         special = (detail["特色"]) ? detail["特色"].replace(/从您位置到.*卫星地图/, "").split("、") : null,
-        district = await districts.match(detail["位置"])
-
+        district = await mdd.match(detail["位置"])
 
     let spot = {
         "name": scenic.txt.name,
@@ -75,12 +74,13 @@ function run() {
             // log(scenic)
             if (count++ % 100 == 0)
                 log(count)
-            await scenics.merge(scenic)
+            await poi.merge(scenic)
         }
     })
 
     db.on("searchdone", () => {
-        districts.done()
+        mdd.done()
+        poi.done()
         log("search done!")
     })
 
@@ -91,10 +91,7 @@ function run() {
 
 //cache meet data
 (async () => {
-    // let res = await getData()
-    // res = await getAdcode(res)
+
     await run()
 
-
-    log(1)
 })()

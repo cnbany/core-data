@@ -1,69 +1,31 @@
-const url = require("url");
-const _ = require("lodash");
+process.env.DEBUG = "bany*"
 
-const fs = require('../../libs/fs');
-const misc = require('../../libs/misc');
-const Msid = require("../msid");
-const Msdz = require("../msdz");
-
-
-
-
-// const idms = new Idms("scenics", 12)
-
-
-const log = misc.log,
-    scenicid = new Msid("scenic"),
-    msdz = new Msdz()
-
-function group( file = "./cache/scenics.ndjson") {
-    let result = {}
-    let scenics = fs.read(file)
-    for (let i in scenics) {
-        let key = (scenics.districts && scenics.districts.province) ? scenics.districts.province.adcode : "000000"
-
-        if (!result.hasOwnProperty(key)) result[key] = []
-
-        result[key].push(scenics[i])
-    }
-
-    
-    for (let key in result) {
-        // console.log(result[key].length)
-        fs.write(`./cache/amap/amap.${key}.ndjson`, result[key])
-    }
-}
+const _ = require("loadsh"),
+    fs = require('../lib/fs'),
+    log = require("debug")("bany-scenic-amap:")
+    redis = require("../lib/redis")("amap","json")
 
 function parse(scenic) {
-    let ret = {}
-    let hasScenic = (scenic.scenic) ? true : false
 
-    let poi = scenic.base.poiid
-    let aois = scenic.base.geodata.aoi
-    let name = scenic.base.name
-    let point = {
-        "lon": scenic.base.x,
-        "lat": scenic.base.y
-    }
+    let hasScenic = (scenic.scenic) ? true : false,
+        poi = scenic.base.poiid,
+        aois = scenic.base.geodata.aoi,
+        name = scenic.base.name,
+        cls = "norm",
+        intro = [],
+        point = {
+            "lon": scenic.base.x,
+            "lat": scenic.base.y
+        }
 
-    let id = scenicid.get(poi)
+    let shape = (scenic.spec.mining_shape && scenic.spec.mining_shape.shape) ? scenic.spec.mining_shape.shape : undefined
 
-    let scenicids = _.flatMap(aois, (it) => {
-        return scenicid.get(it.mainpoi)
-    })
-
-    ret.shape = (scenic.spec.mining_shape && scenic.spec.mining_shape.shape) ? {
-        id,
-        shape: scenic.spec.mining_shape.shape
-    } : null
-
-    ret.image = _.compact(_.flatMap(scenic.pic, (it) => {
+    let image = _.compact(_.flatMap(scenic.pic, (it) => {
         let url = it.url
         let height = it.srcheight ? _.toNumber(it.srcheight) : 0
         let width = it.srcwidth ? _.toNumber(it.srcwidth) : 0
         if (height > width)
             return {
-                id,
                 name,
                 "src": "amap",
                 type: "image",
@@ -74,42 +36,33 @@ function parse(scenic) {
     }))
 
 
-    ret.intro = []
     if (hasScenic) {
         if (scenic.scenic.intro)
-            ret.intro.push({
-                id,
-                name,
+            intro.push({
                 title: "intro",
                 txt: scenic.scenic.intro.trim()
             })
         if (scenic.scenic.midea_info && scenic.scenic.midea_info.scenic_txt_tts)
-            ret.intro.push({
-                id,
-                name,
+            intro.push({
                 title: "guide",
                 txt: scenic.scenic.midea_info.scenic_txt_tts.trim()
             })
         if (scenic.scenic.special)
-            ret.intro.push({
-                id,
-                name,
+            intro.push({
                 title: "special",
                 txt: scenic.scenic.special.trim()
             })
     }
 
-
-    let cls = "norm"
-    if (ret.shape) cls = "aoi"
-    else if (scenicids.indexOf(id) >= 0) cls = "aoi"
-    else if (scenicids.length > 0) cls = "poi"
+    if (shape) cls = "aoi"
+    else if (aois && aois.indexOf(poi) >= 0) cls = "aoi"
+    else if (aois && aois.length > 0) cls = "poi"
     else if (!hasScenic) cls = "noop"
 
-    ret.scenic = {
-        id,
+    let spot = {
+        poi: poi,
         cls, //aoi:景区  poi:景点
-        "aoi": scenicids,
+        "aoi": aois,
         "name": scenic.base.name,
         // "alias": [],
         "cover": (scenic.pic_cover) ? scenic.pic_cover.url : "",
@@ -119,13 +72,13 @@ function parse(scenic) {
 
         "onmap": {
             point,
-            "shape": (ret.shape) ? true : false,
+            "shape": (shape) ? true : false,
             "level": (scenic.spec.mining_shape) ? scenic.spec.mining_shape.level : 18,
             // "icon": null
         },
         "comment": {},
         "resource": {
-            images: ret.image.length
+            images: image.length
         },
         "external": {
             "amap": {
@@ -133,85 +86,54 @@ function parse(scenic) {
                 "src": "https://www.amap.com/detail/" + poi
             }
         },
-
+        intros: intro,
+        images: image,
+        shape: shape
     }
+    if (intro) spot.intros = intro
+    if (image) spot.images = image
+    if (shape) spot.shapes = shape
 
     if (hasScenic) {
-        ret.scenic.scenic = {
+        spot.scenic = {
             "star": (scenic.scenic.level) ? scenic.scenic.level.length : 0,
             "peoples": (scenic.scenic.client) ? _.compact(scenic.scenic.client.split("|")) : [],
         }
-        ret.scenic.comment.score = _.toNumber(scenic.scenic.src_star)
-        ret.scenic.desc = scenic.scenic.intro
+        spot.comment.score = _.toNumber(scenic.scenic.src_star)
+        spot.desc = scenic.scenic.intro
     }
 
-    return ret
+    return spot
 };
 
 
-(async () => {
+async function run() {
 
-    await scenicid.load()
-    await msdz.load()
+    let opt = 'w',
+        files = fs.glob("../cache/source/amap/*_scenic_raw.json")
 
-    let count = 0,
-        opt = 'w',
-        now = new Date().valueOf(),
-        fnow = now
-
-    let files = fs.glob("cache/source/amap/*_scenic_raw.json");
     for (let i in files) {
         // if (files[i].indexOf("340000") >= 0) { //测试单个文件用
-        let pois = fs.read(files[i], 'ndjson')
-        if (i > 0) {
-            let flast = new Date().valueOf()
-            log(`process file [${fs.basename(files[i - 1])}]`)
-            fnow = flast
+        let pois = fs.read(files[i], 'ndjson'),
+            scenics = []
+
+        log(`process No.${_.toNumber(i)+1} file [${fs.basename(files[i])}] count: ${pois.length}`)
+
+        for (let poi of pois) {
+            let scenic = await parse(poi)
+            let kv = {}
+            kv[scenic.poi] =  JSON.stringify(scenic)
+            scenics.push(kv)
         }
 
-        let scenics = [],
-            intros = [],
-            images = [],
-            shapes = []
-        for (let j in pois) {
-            if (++count % 5000 == 0) {
-                let last = new Date().valueOf()
-                log(`${last - now} : process ${count} .\t No.${_.toNumber(i) + 1} file [${fs.basename(files[i])}] ${_.toNumber(j) + 1}`)
-                now = last
-            }
+        await  redis.hset(scenics)
 
-            let {
-                scenic,
-                intro,
-                image,
-                shape
-            } = await parse(pois[j])
-            if (scenic) {
-                //!!添加区号信息
-                let dz = msdz.match(scenic.address)
-                if (dz && dz.districts) {
-                    scenic.adcode = dz.adcode
-                    scenic.districts = dz.districts
-                } else log(scenic.address + " address not found!")
-
-                scenics.push(scenic)
-            }
-
-            if (image.length > 0) images = images.push(...image)
-            if (intro.length > 0) intros = intros.push(...intro)
-            if (shape) shapes.push(shape)
-        }
-
-        scenics = _.orderBy(scenics, ["cls", "scenic.star", "comment.score"], ["asc", "desc", "desc"])
-
-        fs.write("./cache/scenics.ndjson", scenics, opt)
-        fs.write("./cache/intros.ndjson", intros, opt)
-        fs.write("./cache/images.ndjson", images, opt)
-        fs.write("./cache/shapes.ndjson", shapes, opt)
-        if (opt == 'w') opt = 'a'
-        // }//测试单个文件用
+        // fs.write("./cache/scenics.ndjson", scenics, opt)
+        // if (opt == 'w') opt = 'a'
     }
+    redis.done()
+};
 
-    await scenicid.save()
-    
+(async () => {
+    await run()
 })()
