@@ -3,7 +3,8 @@ process.env.DEBUG = "bany*"
 const _ = require("loadsh"),
     fs = require('../lib/fs'),
     log = require("debug")("bany-scenic-amap:"),
-    redis = require("../lib/redis")("amap", "json")
+    redis = require("../lib/redis")("amap", "json"),
+    chinese = require("../lib/chinese")
 
 function parse(scenic) {
 
@@ -107,8 +108,26 @@ function parse(scenic) {
     return spot
 };
 
+async function output(file) {
 
-async function run() {
+    let ids = await redis.get("amapids")
+    if (!ids || ids.length == 0) return
+
+    ids = ids.split(",")
+    let opt = 'w',
+        chunks = _.chunk(ids, 10000)
+    file = file || "./cache/amap.all.ndjson"
+
+    for (let i in chunks) {
+        let res = await redis.hget(chunks[i])
+        fs.write(file, res, opt, "ndjson")
+        if (opt == 'w') opt = 'a'
+    }
+    redis.done()
+}
+
+
+async function input() {
 
     let opt = 'w',
         files = fs.glob("../cache/source/amap/*_scenic_raw.json"),
@@ -116,12 +135,22 @@ async function run() {
 
     for (let i in files) {
         // if (files[i].indexOf("340000") >= 0) { //测试单个文件用
+        let t2s = false
+
+        if (files[i].indexOf("710000") >= 0 || files[i].indexOf("810000") >= 0 || files[i].indexOf("820000") >= 0)
+            t2s = true
+
+        // if (!t2s) continue
+
         let pois = fs.read(files[i], 'ndjson'),
             scenics = []
 
         log(`process No.${_.toNumber(i)+1} file [${fs.basename(files[i])}] count: ${pois.length}`)
 
         for (let poi of pois) {
+            if (t2s)
+                poi = JSON.parse(chinese.t2s(JSON.stringify(poi)))
+
             let scenic = await parse(poi)
             let kv = {}
             kv[scenic.poi] = JSON.stringify(scenic)
@@ -131,10 +160,15 @@ async function run() {
 
         await redis.hset(scenics)
     }
+    ids = _.union(ids)
     await redis.set("amapids", ids.join(","))
+
+    // await output(ids)
     redis.done()
-};
+}
+
 
 (async () => {
-    await run()
+    await output()
+    redis.done()
 })()

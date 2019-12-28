@@ -57,7 +57,29 @@ function parse(scenic) {
 }
 
 
-function run() {
+
+async function output(file) {
+
+    let ids = await redis.get("meetids")
+    if (!ids || ids.length == 0) return
+
+    ids = ids.split(",")
+    let opt = 'w',
+        chunks = _.chunk(ids, 10000)
+    file = file || "./cache/meet.all.ndjson"
+
+    for (let i in chunks) {
+        let res = await redis.hget(chunks[i])
+        fs.write(file, res, opt, "ndjson")
+        if (opt == 'w') opt = 'a'
+    }
+    redis.done()
+}
+
+
+//cache meet data
+async function input() {
+
     let count = 0,
         ids = []
     let qs = dsl()
@@ -82,15 +104,16 @@ function run() {
     })
 
     db.on("searchdone", async () => {
-        await redis.set("meetids",ids.join(","))
+        ids = _.union(ids)
+        await redis.set("meetids", ids.join(","))
         redis.done()
         log("search done!")
     })
 
     db.search(qs)
-}
+};
 
-//cache meet data
+
 (async () => {
-    await run()
+    output()
 })()
