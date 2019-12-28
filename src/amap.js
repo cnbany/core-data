@@ -35,7 +35,6 @@ function parse(scenic) {
             }
     }))
 
-
     if (hasScenic) {
         if (scenic.scenic.intro)
             intro.push({
@@ -128,8 +127,6 @@ async function run() {
 
         await  redis.hset(scenics)
 
-        // fs.write("./cache/scenics.ndjson", scenics, opt)
-        // if (opt == 'w') opt = 'a'
     }
     redis.done()
 };

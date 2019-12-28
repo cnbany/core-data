@@ -1,11 +1,10 @@
-process.env.DEBUG = "bany-scenic*"
+process.env.DEBUG = "bany*"
 
 const _ = require("loadsh"),
     fs = require('../lib/fs'),
     log = require("debug")("bany-scenic-meet:"),
-    dsl = require("bodybuilder"), //doc: https://bodybuilder.js.org/
-    mdd = require("./bany/district"),
-    poi = require("./bany/scenic"),
+    redis = require("../lib/redis")("meet", "json")
+dsl = require("bodybuilder"), //doc: https://bodybuilder.js.org/
     elastic = require("../lib/elastic")
 
 
@@ -25,15 +24,16 @@ function parseDetail(detail) {
     return res
 };
 
-async function parse(scenic) {
+function parse(scenic) {
     let detail = parseDetail(scenic.txt.detail),
         qualify = (detail["资质"]) ? (detail["资质"]).split("、") : undefined,
         special = (detail["特色"]) ? detail["特色"].replace(/从您位置到.*卫星地图/, "").split("、") : null,
-        district = await mdd.match(detail["位置"])
+        address = (detail["位置"]) ? detail["位置"] : undefined
 
     let spot = {
+        "poi": scenic.txt.id,
         "name": scenic.txt.name,
-        "district": (district) ? district.adcode : undefined,
+        "address": address,
         "class": "scenic",
         "alias": [scenic.txt.name],
         "scenic": {
@@ -46,7 +46,7 @@ async function parse(scenic) {
             "go": _.toNumber(scenic.txt.go),
         },
         "external": {
-            "meet99": {
+            "meet": {
                 "id": scenic.txt.id,
                 "name": scenic.txt.name,
                 "src": "https://www.meet99.com" + scenic.txt.url
@@ -60,38 +60,35 @@ async function parse(scenic) {
 function run() {
     let qs = dsl()
         .filter("match", "cls", "aoi")
-        .notFilter("range", "crw.amap", {
-            gt: new Date().valueOf() - 8640000000
-        })
-        .size(10)
+        // .notFilter("range", "crw.amap", {
+        //     gt: new Date().valueOf() - 8640000000
+        // })
+        .size(1000)
         .build();
 
     let count = 0
 
     db.on("data", async (res) => {
+
+        let scenics = []
         for (let i in res) {
-            let scenic = await parse(res[i])
-            // log(scenic)
-            if (count++ % 100 == 0)
-                log(count)
-            await poi.merge(scenic)
+            let scenic = parse(res[i])
+            let kv = {}
+            kv[scenic.poi] = JSON.stringify(scenic)
+            scenics.push(kv)
         }
+        await redis.hset(scenics)
     })
 
     db.on("searchdone", () => {
-        mdd.done()
-        poi.done()
+        redis.done()
         log("search done!")
     })
 
     db.search(qs)
 }
 
-
-
 //cache meet data
 (async () => {
-
     await run()
-
 })()
