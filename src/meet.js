@@ -58,6 +58,8 @@ function parse(scenic) {
 
 
 function run() {
+    let count = 0,
+        ids = []
     let qs = dsl()
         .filter("match", "cls", "aoi")
         // .notFilter("range", "crw.amap", {
@@ -65,8 +67,6 @@ function run() {
         // })
         .size(1000)
         .build();
-
-    let count = 0
 
     db.on("data", async (res) => {
 
@@ -76,11 +76,13 @@ function run() {
             let kv = {}
             kv[scenic.poi] = JSON.stringify(scenic)
             scenics.push(kv)
+            ids.push(scenic.poi)
         }
         await redis.hset(scenics)
     })
 
-    db.on("searchdone", () => {
+    db.on("searchdone", async () => {
+        await redis.set("meetids",ids.join(","))
         redis.done()
         log("search done!")
     })

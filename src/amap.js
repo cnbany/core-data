@@ -2,8 +2,8 @@ process.env.DEBUG = "bany*"
 
 const _ = require("loadsh"),
     fs = require('../lib/fs'),
-    log = require("debug")("bany-scenic-amap:")
-    redis = require("../lib/redis")("amap","json")
+    log = require("debug")("bany-scenic-amap:"),
+    redis = require("../lib/redis")("amap", "json")
 
 function parse(scenic) {
 
@@ -41,11 +41,13 @@ function parse(scenic) {
                 title: "intro",
                 txt: scenic.scenic.intro.trim()
             })
+
         if (scenic.scenic.midea_info && scenic.scenic.midea_info.scenic_txt_tts)
             intro.push({
                 title: "guide",
                 txt: scenic.scenic.midea_info.scenic_txt_tts.trim()
             })
+
         if (scenic.scenic.special)
             intro.push({
                 title: "special",
@@ -59,9 +61,9 @@ function parse(scenic) {
     else if (!hasScenic) cls = "noop"
 
     let spot = {
-        poi: poi,
+        poi,
         cls, //aoi:景区  poi:景点
-        "aoi": aois,
+        aois,
         "name": scenic.base.name,
         // "alias": [],
         "cover": (scenic.pic_cover) ? scenic.pic_cover.url : "",
@@ -109,7 +111,8 @@ function parse(scenic) {
 async function run() {
 
     let opt = 'w',
-        files = fs.glob("../cache/source/amap/*_scenic_raw.json")
+        files = fs.glob("../cache/source/amap/*_scenic_raw.json"),
+        ids = []
 
     for (let i in files) {
         // if (files[i].indexOf("340000") >= 0) { //测试单个文件用
@@ -121,13 +124,14 @@ async function run() {
         for (let poi of pois) {
             let scenic = await parse(poi)
             let kv = {}
-            kv[scenic.poi] =  JSON.stringify(scenic)
+            kv[scenic.poi] = JSON.stringify(scenic)
             scenics.push(kv)
+            ids.push(scenic.poi)
         }
 
-        await  redis.hset(scenics)
-
+        await redis.hset(scenics)
     }
+    await redis.set("amapids", ids.join(","))
     redis.done()
 };
 
