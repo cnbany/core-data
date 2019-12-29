@@ -2,7 +2,7 @@
 
 process.env.DEBUG = "bany-scenic*"
 const _ = require("lodash");
-const qs = require('qs');
+
 
 const config = require('config');
 
@@ -13,16 +13,7 @@ const log = require("debug")("bany-scenic:")
 const redis = require('../../lib/redis')("scenics", "json");
 const ids = require('../../lib/redis')("ids", 12)
 
-const Got = require("got");
-
-
-const got = Got.extend({
-    // baseUrl: "http://restapi.amap.com/v3/place/text",
-    json: true,
-    headers: {
-        "Content-Type": "application/json"
-    }
-});
+const amap = require('../../lib/amap')
 
 
 function merge(dst, src) {
@@ -50,35 +41,11 @@ function merge(dst, src) {
 
 async function match(name, city) {
 
-    if (!name) {
-        log(`match: is none. name is null`)
-        return []
-    }
+    let pois = await amap.search(name, city),
+        result = []
 
-    let params = {
-        'key': "958e135e16b074d7eb29e261b85a075f",
-        'city': city,
-        'citylimit': true,
-        'keywords': name,
-        'extensions': 'base',
-        'output': 'json',
-        'type': '风景名胜|高等院校',
-        'offset': '1',
-        'page': 0
-    }
 
-    let url = "http://restapi.amap.com/v3/place/text?" + qs.stringify(params)
-
-    const res = await got.get(url);
-
-    let result = []
-
-    if (!res.body.pois) {
-        log("error:", url)
-        res.body.pois = []
-    }
-
-    for (let poi of res.body.pois) {
+    for (let poi of pois) {
         let amapid = poi.id,
             id = await ids.hget(amapid),
             txt = await redis.hget(id)
@@ -129,3 +96,7 @@ const scenic = {
 }
 
 module.exports = scenic;
+
+(async () => {
+    await match("包公园", '342401')
+})()
