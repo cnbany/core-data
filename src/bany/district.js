@@ -46,8 +46,8 @@ function _normal(str) {
 
     //处理繁体字
 
-    if (chinese.ist(str))
-        str = chinese.t2s(str)
+    // if (chinese.ist(str))
+    //     str = chinese.t2s(str)
     return str
 }
 

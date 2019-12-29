@@ -108,30 +108,13 @@ function parse(scenic) {
     return spot
 };
 
-async function output(file) {
 
-    let ids = await redis.get("amapids")
-    if (!ids || ids.length == 0) return
-
-    ids = ids.split(",")
-    let opt = 'w',
-        chunks = _.chunk(ids, 10000)
-    file = file || "./cache/amap.all.ndjson"
-
-    for (let i in chunks) {
-        let res = await redis.hget(chunks[i])
-        fs.write(file, res, opt, "ndjson")
-        if (opt == 'w') opt = 'a'
-    }
-    redis.done()
-}
 
 
 async function input() {
 
     let opt = 'w',
-        files = fs.glob("../cache/source/amap/*_scenic_raw.json"),
-        ids = []
+        files = fs.glob("../cache/source/amap/*_scenic_raw.json")
 
     for (let i in files) {
         // if (files[i].indexOf("340000") >= 0) { //测试单个文件用
@@ -155,20 +138,22 @@ async function input() {
             let kv = {}
             kv[scenic.poi] = JSON.stringify(scenic)
             scenics.push(kv)
-            ids.push(scenic.poi)
+
         }
 
         await redis.hset(scenics)
     }
-    ids = _.union(ids)
-    await redis.set("amapids", ids.join(","))
 
-    // await output(ids)
+
+    await redis.hdump()
     redis.done()
 }
 
 
 (async () => {
-    await output()
-    redis.done()
+    log(1)
+    await  input()
+    // await redis.hdump()
+    // redis.done()
+    log(2)
 })()

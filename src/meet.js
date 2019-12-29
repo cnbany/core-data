@@ -3,8 +3,8 @@ process.env.DEBUG = "bany*"
 const _ = require("loadsh"),
     fs = require('../lib/fs'),
     log = require("debug")("bany-scenic-meet:"),
-    redis = require("../lib/redis")("meet", "json")
-dsl = require("bodybuilder"), //doc: https://bodybuilder.js.org/
+    redis = require("../lib/redis")("meet", "json"),
+    dsl = require("bodybuilder"), //doc: https://bodybuilder.js.org/
     elastic = require("../lib/elastic")
 
 
@@ -57,31 +57,11 @@ function parse(scenic) {
 }
 
 
-
-async function output(file) {
-
-    let ids = await redis.get("meetids")
-    if (!ids || ids.length == 0) return
-
-    ids = ids.split(",")
-    let opt = 'w',
-        chunks = _.chunk(ids, 10000)
-    file = file || "./cache/meet.all.ndjson"
-
-    for (let i in chunks) {
-        let res = await redis.hget(chunks[i])
-        fs.write(file, res, opt, "ndjson")
-        if (opt == 'w') opt = 'a'
-    }
-    redis.done()
-}
-
-
 //cache meet data
 async function input() {
 
-    let count = 0,
-        ids = []
+    let count = 0
+
     let qs = dsl()
         .filter("match", "cls", "aoi")
         // .notFilter("range", "crw.amap", {
@@ -98,14 +78,13 @@ async function input() {
             let kv = {}
             kv[scenic.poi] = JSON.stringify(scenic)
             scenics.push(kv)
-            ids.push(scenic.poi)
+
         }
         await redis.hset(scenics)
     })
 
     db.on("searchdone", async () => {
-        ids = _.union(ids)
-        await redis.set("meetids", ids.join(","))
+        await redis.hdump()
         redis.done()
         log("search done!")
     })
@@ -115,5 +94,7 @@ async function input() {
 
 
 (async () => {
-    output()
+    log("start")
+
+    input()
 })()
