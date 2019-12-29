@@ -1,19 +1,15 @@
 //restapi.amap.com/v3/place/text?key=您的key&keywords=门头沟黄芩仙谷景区&types=&city=北京&children=1&offset=20&page=1&extensions=all
 
 process.env.DEBUG = "bany-scenic*"
-const _ = require("lodash");
 
+const _ = require("lodash"),
+    fs = require("../../lib/fs"),
+    log = require("debug")("bany-scenic:"),
+    ids = require('../../lib/redis')("ids", 12),
+    amap = require('../../lib/amap'),
+    bany = require('../../lib/redis')("scenics", "json"),
+    config = require('config')
 
-const config = require('config');
-
-const fs = require("../../lib/fs")
-
-const log = require("debug")("bany-scenic:")
-
-const redis = require('../../lib/redis')("scenics", "json");
-const ids = require('../../lib/redis')("ids", 12)
-
-const amap = require('../../lib/amap')
 
 
 function merge(dst, src) {
@@ -44,11 +40,10 @@ async function match(name, city) {
     let pois = await amap.search(name, city),
         result = []
 
-
     for (let poi of pois) {
         let amapid = poi.id,
             id = await ids.hget(amapid),
-            txt = await redis.hget(id)
+            txt = await bany.hget(id)
 
         if (!txt)
             txt = {
