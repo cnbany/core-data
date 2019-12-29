@@ -32,7 +32,7 @@ function merge(dst, src) {
 
     //合并列表
 
-    if (src.scenic &&  Array.isArray(res.scenic.qualify)) {
+    if (src.scenic && Array.isArray(res.scenic.qualify)) {
         res.scenic.qualify.push(src.scenic.qualify)
         res.scenic.qualify = _.compact(res.scenic.qualify)
     }
@@ -73,8 +73,8 @@ async function match(name, city) {
 
     let result = []
 
-    if (!res.body.pois ){
-        log("error:",url)
+    if (!res.body.pois) {
+        log("error:", url)
         res.body.pois = []
     }
 
@@ -120,8 +120,7 @@ const scenic = {
 
         let dst = (src.id) ? await redis.hget(src.id) : await match(src.name, src.district)
 
-        if (dst)
-            dst = merge(dst, src)
+        if (dst) dst = merge(dst, src)
 
         await redis.hset(dst.id, JSON.stringify(dst))
     },
@@ -130,4 +129,3 @@ const scenic = {
 }
 
 module.exports = scenic;
-

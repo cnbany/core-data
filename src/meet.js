@@ -34,7 +34,7 @@ function parse(scenic) {
         "poi": scenic.txt.id,
         "name": scenic.txt.name,
         "address": address,
-        "class": "scenic",
+        "cls": "scenic",
         "alias": [scenic.txt.name],
         "scenic": {
             "star": scenic.txt.star || 0,
