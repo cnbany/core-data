@@ -4,6 +4,7 @@ const _ = require("loadsh"),
     fs = require('../lib/fs'),
     log = require("debug")("bany-scenic-meet:"),
     redis = require("../lib/redis")("meet", "json"),
+    mdd = require("./bany/district"),
     dsl = require("bodybuilder"), //doc: https://bodybuilder.js.org/
     elastic = require("../lib/elastic")
 
@@ -78,7 +79,6 @@ async function input() {
             let kv = {}
             kv[scenic.poi] = JSON.stringify(scenic)
             scenics.push(kv)
-
         }
         await redis.hset(scenics)
     })
