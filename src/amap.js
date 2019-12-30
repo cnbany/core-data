@@ -87,11 +87,9 @@ function parse(scenic) {
                 "id": poi,
                 "src": "https://www.amap.com/detail/" + poi
             }
-        },
-        intros: intro,
-        images: image,
-        shape: shape
+        }
     }
+    
     if (intro) spot.intros = intro
     if (image) spot.images = image
     if (shape) spot.shapes = shape
@@ -102,28 +100,24 @@ function parse(scenic) {
             "peoples": (scenic.scenic.client) ? _.compact(scenic.scenic.client.split("|")) : [],
         }
         spot.comment.score = _.toNumber(scenic.scenic.src_star)
-        spot.desc = scenic.scenic.intro
+        // spot.desc = scenic.scenic.intro
     }
 
     return spot
 };
 
-
-
-
-async function input() {
-
+(async () => {
+    let logtime = require("debug")("bany-time")
+    logtime("import start")
+    
     let opt = 'w',
         files = fs.glob("../cache/source/amap/*_scenic_raw.json")
 
     for (let i in files) {
-        // if (files[i].indexOf("340000") >= 0) { //测试单个文件用
-        let t2s = false
 
+        let t2s = false
         if (files[i].indexOf("710000") >= 0 || files[i].indexOf("810000") >= 0 || files[i].indexOf("820000") >= 0)
             t2s = true
-
-        // if (!t2s) continue
 
         let pois = fs.read(files[i], 'ndjson'),
             scenics = []
@@ -138,22 +132,14 @@ async function input() {
             let kv = {}
             kv[scenic.poi] = JSON.stringify(scenic)
             scenics.push(kv)
-
         }
-
         await redis.hset(scenics)
     }
 
+    logtime("import end")
+    logtime("dump start")
 
     await redis.hdump()
     redis.done()
-}
-
-
-(async () => {
-    log(1)
-    await  input()
-    // await redis.hdump()
-    // redis.done()
-    log(2)
+    logtime("dump end")
 })()

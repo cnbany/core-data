@@ -14,8 +14,10 @@ async function processAmap() {
         let res = await db.hget(chunks[i])
         for ( let i in res){
             if (! res[i].district){
-                let district = await mdd.match(spot.address)
+                let district = await mdd.match(res[i].address)
                 res[i].adcode = district.adcode
+                delete district.districts.country
+                res[i].districts = district.districts
                 log(1)
             }
 

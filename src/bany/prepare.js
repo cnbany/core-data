@@ -128,12 +128,10 @@ async function cacheScenics() {
 };
 
 
-
-
 (async () => {
     await cacheIds()
     await cacheDistrict()
-    await cacheScenics()
+    // await cacheScenics()
     // await cacheMeets()
     // log(1)
     // let redis = require('../lib/redis')("scenics");
