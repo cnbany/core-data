@@ -149,7 +149,7 @@ async function parse(scenic) {
             for (let i in  scenic.aois){
                 if (idslist[scenic.aois[i]]) parent.push(scenic.aois[i])
             }
-            scenic.aois =(parent.length>0)? await ids.hget(parent) : ""
+            scenic.aois =(parent.length>0)? await ids.hget(parent) : []
 
             let kv = {}
             kv[scenic.id] = JSON.stringify(scenic)
