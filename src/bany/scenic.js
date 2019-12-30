@@ -7,7 +7,7 @@ const _ = require("lodash"),
     log = require("debug")("bany-scenic:"),
     ids = require('../../lib/redis')("ids", 12),
     amap = require('../../lib/amap'),
-    bany = require('../../lib/redis')("scenics", "json"),
+    bany = require('../../lib/redis')("bany", "json"),
     config = require('config')
 
 
@@ -71,20 +71,27 @@ async function match(name, city) {
 const scenic = {
     done: () => {
         ids.done()
-        redis.done()
+        bany.done()
     },
 
     get: async function (keys) {
-        return await redis.hget(keys)
+        return await bany.hget(keys)
     },
+    set: async function (kvs){
+        return await bany.hset(kvs)
+    },
+    dump: async function (file){
+        return await bany.hdump(file)
+    },
+    
 
     merge: async (src) => {
 
-        let dst = (src.id) ? await redis.hget(src.id) : await match(src.name, src.district)
+        let dst = (src.id) ? await bany.hget(src.id) : await match(src.name, src.district)
 
         if (dst) dst = merge(dst, src)
 
-        await redis.hset(dst.id, JSON.stringify(dst))
+        await bany.hset(dst.id, JSON.stringify(dst))
     },
 
 
@@ -92,6 +99,6 @@ const scenic = {
 
 module.exports = scenic;
 
-(async () => {
-    await match("包公园", '342401')
-})()
+// (async () => {
+//     await match("包公园", '342401')
+// })()

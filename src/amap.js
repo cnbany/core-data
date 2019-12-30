@@ -1,23 +1,31 @@
-process.env.DEBUG = "bany*"
+process.env.DEBUG = "bany-scenic*"
 
 const _ = require("loadsh"),
     fs = require('../lib/fs'),
     log = require("debug")("bany-scenic-amap:"),
+    ids = require("../lib/redis")("ids",12),
     redis = require("../lib/redis")("amap", "json"),
+    mdd = require("./bany/district"),
     chinese = require("../lib/chinese")
 
-function parse(scenic) {
+
+async function parse(scenic) {
 
     let hasScenic = (scenic.scenic) ? true : false,
         poi = scenic.base.poiid,
-        aois = scenic.base.geodata.aoi,
+        aois = _.flatMap(scenic.base.geodata.aoi, "mainpoi")
         name = scenic.base.name,
+        address =  scenic.base.address,
         cls = "norm",
         intro = [],
         point = {
             "lon": scenic.base.x,
             "lat": scenic.base.y
         }
+
+    let id = await ids.hget(poi)        
+    let district = await mdd.match(address)
+
 
     let shape = (scenic.spec.mining_shape && scenic.spec.mining_shape.shape) ? scenic.spec.mining_shape.shape : undefined
 
@@ -62,15 +70,19 @@ function parse(scenic) {
     else if (!hasScenic) cls = "noop"
 
     let spot = {
-        poi,
+        id,
+        "name": scenic.base.name,
+        // poi,
         cls, //aoi:景区  poi:景点
         aois,
-        "name": scenic.base.name,
+        address,
+        adcode : district.adcode,
+  
         // "alias": [],
         "cover": (scenic.pic_cover) ? scenic.pic_cover.url : "",
         "classify": scenic.base.tag,
         "theme": (scenic.deep) ? scenic.deep.tag_category : "",
-        "address": scenic.base.address,
+        // districts : district.districts,
 
         "onmap": {
             point,
@@ -85,6 +97,7 @@ function parse(scenic) {
         "external": {
             "amap": {
                 "id": poi,
+                "name": scenic.base.name,
                 "src": "https://www.amap.com/detail/" + poi
             }
         }
@@ -107,8 +120,10 @@ function parse(scenic) {
 };
 
 (async () => {
-    let logtime = require("debug")("bany-time")
+    let logtime = require("debug")("bany-scenic-time")
     logtime("import start")
+
+    let idslist = await ids.hget("all")
     
     let opt = 'w',
         files = fs.glob("../cache/source/amap/*_scenic_raw.json")
@@ -129,8 +144,15 @@ function parse(scenic) {
                 poi = JSON.parse(chinese.t2s(JSON.stringify(poi)))
 
             let scenic = await parse(poi)
+
+            let parent = []
+            for (let i in  scenic.aois){
+                if (idslist[scenic.aois[i]]) parent.push(scenic.aois[i])
+            }
+            scenic.aois =(parent.length>0)? await ids.hget(parent) : ""
+
             let kv = {}
-            kv[scenic.poi] = JSON.stringify(scenic)
+            kv[scenic.id] = JSON.stringify(scenic)
             scenics.push(kv)
         }
         await redis.hset(scenics)
@@ -140,6 +162,8 @@ function parse(scenic) {
     logtime("dump start")
 
     await redis.hdump()
+    ids.done()
     redis.done()
+    mdd.done()
     logtime("dump end")
 })()
