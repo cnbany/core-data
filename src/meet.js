@@ -3,12 +3,21 @@ process.env.DEBUG = "bany*"
 const _ = require("loadsh"),
     fs = require('../lib/fs'),
     log = require("debug")("bany-scenic-meet:"),
-    redis = require("../lib/redis")("meet", "json"),
+    mdd = require("./bany/district"),
+    aoi = require("./bany/scenic"),
     dsl = require("bodybuilder"), //doc: https://bodybuilder.js.org/
-    elastic = require("../lib/elastic")
+    meet = require("../lib/redis")("meet", "json"),
+    elastic = require("../lib/elastic"),
+    timestamp = require("debug")("bany-scenic-timestamp")
 
 
 let db = new elastic("meet_ibc")
+
+function _done() {
+    meet.done()
+    mdd.done()
+    aoi.done()
+}
 
 function parseDetail(detail) {
     detail = detail.split("<h2>")
@@ -34,6 +43,7 @@ function parse(scenic) {
         "poi": scenic.txt.id,
         "name": scenic.txt.name,
         "address": address,
+        "adcode": "",
         "cls": "scenic",
         "alias": [scenic.txt.name],
         "scenic": {
@@ -49,7 +59,8 @@ function parse(scenic) {
             "meet": {
                 "id": scenic.txt.id,
                 "name": scenic.txt.name,
-                "src": "https://www.meet99.com" + scenic.txt.url
+                "src": "https://www.meet99.com" + scenic.txt.url,
+                "crw": new Date().valueOf()
             }
         }
     }
@@ -57,7 +68,7 @@ function parse(scenic) {
 }
 
 
-(async () => {
+async function es2redis() {
 
 
     let qs = dsl()
@@ -68,24 +79,44 @@ function parse(scenic) {
         .size(1000)
         .build();
 
-    db.on("data", async (res) => {
-
-        let scenics = []
-        for (let i in res) {
-            let scenic = parse(res[i])
-            let kv = {}
-            kv[scenic.poi] = JSON.stringify(scenic)
-            scenics.push(kv)
+    let res = await db.search(qs)
+    let scenics = []
+    for (let i in res) {
+        let scenic = parse(res[i])
+        if (scenic.address) {
+            let district = await mdd.match(scenic.address)
+            scenic.adcode = district.adcode
+            scenic.address = scenic.address.replace(/>/g, "")
         }
-        await redis.hset(scenics)
-    })
+        let kv = {}
+        kv[scenic.poi] = JSON.stringify(scenic)
+        scenics.push(kv)
+    }
+    await meet.hset(scenics)
 
-    db.on("searchdone", async () => {
-        await redis.hdump()
-        redis.done()
-        log("search done!")
-    })
+};
 
-    db.search(qs)
+async function upsert() {
 
+    log(`upsert: is begin. `)
+
+    let ids = await meet.hkeys(),
+        chunks = _.chunk(ids, 1000)
+
+    for (let i in chunks) {
+        let res = await meet.hget(chunks[i])
+        for (let j in res) {
+           await aoi.merge(res[j])
+        }
+    }
+    log(`upsert: is done. `)
+}
+
+(async () => {
+    // await es2redis()
+    // await meet.hdump()
+    await upsert()
+    await aoi.hdump()
+    _done()
+    log("search done!")
 })()

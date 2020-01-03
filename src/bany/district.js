@@ -18,7 +18,7 @@ const redis = require('../../lib/redis')("district", "json");
 const config = require('config');
 const chinese = require("../../lib/chinese")
 const elastic = require("../../lib/elastic");
-const db = new elastic("district")
+
 
 loaddic = () => jieba.load(config.get("dict.districts"));
 loaddic()
@@ -84,14 +84,11 @@ function _pickup(picks) {
     //按权重排序
 
     picks = _.orderBy(picks, "weight", "desc")
-
     return picks[0].id
 }
 
 async function _get(keys) {
-
     let res = await redis.hget(keys)
-
     return res
 }
 

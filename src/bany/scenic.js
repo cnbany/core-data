@@ -1,13 +1,11 @@
-//restapi.amap.com/v3/place/text?key=您的key&keywords=门头沟黄芩仙谷景区&types=&city=北京&children=1&offset=20&page=1&extensions=all
-
 process.env.DEBUG = "bany-scenic*"
 
 const _ = require("lodash"),
     fs = require("../../lib/fs"),
     log = require("debug")("bany-scenic:"),
     ids = require('../../lib/redis')("ids", 12),
+    aoi = require('../../lib/redis')("scenic", "json"),
     amap = require('../../lib/amap'),
-    bany = require('../../lib/redis')("bany", "json"),
     config = require('config')
 
 
@@ -43,7 +41,7 @@ async function match(name, city) {
     for (let poi of pois) {
         let amapid = poi.id,
             id = await ids.hget(amapid),
-            txt = await bany.hget(id)
+            txt = await aoi.hget(id)
 
         if (!txt)
             txt = {
@@ -71,29 +69,28 @@ async function match(name, city) {
 const scenic = {
     done: () => {
         ids.done()
-        bany.done()
+        aoi.done()
     },
 
-    get: async function (keys) {
-        return await bany.hget(keys)
+    hget: async function (keys) {
+        return await aoi.hget(keys)
     },
-    set: async function (kvs){
-        return await bany.hset(kvs)
+
+    hset: async function (kvs) {
+        return await aoi.hset(kvs)
     },
-    dump: async function (file){
-        return await bany.hdump(file)
+
+    hdump: async function (file) {
+        return await aoi.hdump(file)
     },
-    
 
     merge: async (src) => {
-
-        let dst = (src.id) ? await bany.hget(src.id) : await match(src.name, src.district)
-
+        let dst = (src.id) ? await aoi.hget(src.id) : await match(src.name, src.adcode)
         if (dst) dst = merge(dst, src)
-
-        await bany.hset(dst.id, JSON.stringify(dst))
-    },
-
+        let o = {}
+        o[dst.id] =  JSON.stringify(dst)
+        await aoi.hset(o)
+    }
 
 }
 
