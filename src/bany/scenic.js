@@ -1,12 +1,11 @@
 process.env.DEBUG = "bany-scenic*"
 
 const _ = require("lodash"),
-    fs = require("../../lib/fs"),
+    fs = require("@cnbany/fs"),
+    ids = require('./ids'),
     log = require("debug")("bany-scenic:"),
-    ids = require('../../lib/redis')("ids", 12),
-    aoi = require('../../lib/redis')("scenic", "json"),
-    amap = require('../../lib/amap'),
-    config = require('config')
+    scenic = require('@cnbany/redis')("scenic", "json"),
+    amap = require('../../lib/amap')
 
 
 
@@ -33,7 +32,7 @@ function merge(dst, src) {
     return res
 }
 
-async function match(name, city) {
+scenic.match = async function (name, city) {
 
     let pois = await amap.search(name, city),
         result = []
@@ -41,7 +40,7 @@ async function match(name, city) {
     for (let poi of pois) {
         let amapid = poi.id,
             id = await ids.hget(amapid),
-            txt = await aoi.hget(id)
+            txt = await this.hget(id)
 
         if (!txt)
             txt = {
@@ -66,36 +65,26 @@ async function match(name, city) {
     return (result.length > 0) ? result[0] : {}
 }
 
-const scenic = {
-    done: () => {
-        ids.done()
-        aoi.done()
-    },
 
-    hget: async function (keys) {
-        return await aoi.hget(keys)
-    },
-
-    hset: async function (kvs) {
-        return await aoi.hset(kvs)
-    },
-
-    hdump: async function (file) {
-        return await aoi.hdump(file)
-    },
-
-    merge: async (src) => {
-        let dst = (src.id) ? await aoi.hget(src.id) : await match(src.name, src.adcode)
-        if (dst) dst = merge(dst, src)
-        let o = {}
-        o[dst.id] =  JSON.stringify(dst)
-        await aoi.hset(o)
-    }
-
+scenic.merge = async  function (src)  {
+    let dst = (src.id) ? await this.hget(src.id) : await this.match(src.name, src.adcode)
+    if (dst) dst = merge(dst, src)
+    let o = {}
+    o[dst.id] = JSON.stringify(dst)
+    await this.hset(o)
 }
+
+scenic._done = scenic.done
+
+scenic.done = function (){
+    this._done()
+    ids.done()
+}
+
 
 module.exports = scenic;
 
-// (async () => {
-//     await match("包公园", '342401')
-// })()
+(async () => {
+    await scenic.match("包公园", '342401')
+    scenic.done()
+})()

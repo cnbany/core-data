@@ -8,16 +8,14 @@ const _level = ["country", "province", "city", "district", "street"]
 
 
 
-const _ = require("lodash");
-const fs = require("../../lib/fs")
-
-const log = require("debug")("bany-distric:")
-
-const jieba = require("nodejieba");
-const redis = require('../../lib/redis')("district", "json");
-const config = require('config');
-const chinese = require("../../lib/chinese")
-const elastic = require("../../lib/elastic");
+const _ = require("lodash"),
+    fs = require("@cnbany/fs"),
+    district = require('@cnbany/redis')("district", "json"),
+    log = require("debug")("bany-distric:"),
+    jieba = require("nodejieba"),
+    config = require('config')
+    // chinese = require("../../lib/chinese"),
+    // elastic = require("@cnbany/elastic"),
 
 
 loaddic = () => jieba.load(config.get("dict.districts"));
@@ -29,10 +27,8 @@ function _keyword(str) {
 
     let _postfix = ["自治县", "自治州", "自治区", "自治旗", "城区", "地区", "林区", "省", "市", "区", "县", "镇", "乡", "旗"]
     let _nation = ["瑶族", "蒙古族", "回族", "藏族", "苗族", "维吾尔族", "彝族", "壮族", "布依族", "白族", "朝鲜族", "侗族", "哈尼族", "哈萨克族", "满族", "土家族", "瑶族", "达斡尔族", "东乡族", "高山族", "景颇族", "柯尔克孜族", "拉祜族", "纳西族", "畲族", "傣族", "黎族", "傈僳族", "仫佬族", "羌族", "水族", "土族", "佤族", "阿昌族", "布朗族", "毛南族", "普米族", "撒拉族", "塔吉克族", "锡伯族", "仡佬族", "保安族", "德昂族", "俄罗斯族", "鄂温克族", "京族", "怒族", "乌孜别克族", "裕固族", "独龙族", "鄂伦春族", "赫哲族", "基诺族", "珞巴族", "门巴族", "塔塔尔族", "汉族"]
-
     let rePostfix = new RegExp(`(${_postfix.join("|")})$`, 'g')
     let reNation = new RegExp(`(${_nation.join("|")})`, 'g')
-
     return str.replace(reNation, '').replace(rePostfix, '')
 }
 
@@ -87,107 +83,88 @@ function _pickup(picks) {
     return picks[0].id
 }
 
-async function _get(keys) {
-    let res = await redis.hget(keys)
+
+district.match  = async function (location) {
+
+    if (!location) return {}
+
+    // 对文本进行预处理
+    location = _normal(location)
+
+    //分词
+    let tags = jieba.tag(location),
+        picks = []
+
+    // 挑选关键词，并设置初始权重
+
+    for (let i in tags) {
+        if (tags[i].tag[0] == "[") {
+            let o = JSON.parse(tags[i].tag)
+            o = _.flatMap(o, x => {
+                return {
+                    id: x,
+                    w: (1 / o.length)
+                }
+            })
+            picks.push(...o)
+        }
+    }
+
+    if (picks.length == 0) return {}
+
+    // 查询所有相关行政区记录信息
+
+    let ids = _.flatMap(picks, "id")
+    // let districts = _.filter(dzs, x => ids.indexOf(x.id) >= 0)
+
+    let districts = await this.hget(ids)
+
+    for (let i in picks)
+        picks[i].districts = _.find(districts, x => x.id == picks[i].id).districts || {}
+
+    //只有一条记录时直接返回数据
+
+    if (districts.length == 1) return districts[0]
+
+    // 根据权重挑选,返回数据
+    let pickid = _pickup(picks, districts)
+    let res = _.find(districts, x => x.id == pickid)
+
     return res
 }
 
+district.dict =  async function() {
 
-// 地址信息管理
+    let keys = {}
+    let dzs = await district.hget()
+    for (let i in dzs) {
 
-let district = {
-    done: () => {
-        redis.done()
-    },
+        let name = dzs[i].name
+        let kw = _keyword(name)
 
-    get: async function (keys) {
-        return await redis.hget(keys)
-    },
+        if (!keys[name]) keys[name] = []
 
-    match: async function (location) {
+        keys[name].push(dzs[i].id)
 
-        if (!location) return {}
-
-        // 对文本进行预处理
-        location = _normal(location)
-
-        //分词
-        let tags = jieba.tag(location),
-            picks = []
-
-        // 挑选关键词，并设置初始权重
-
-        for (let i in tags) {
-            if (tags[i].tag[0] == "[") {
-                let o = JSON.parse(tags[i].tag)
-                o = _.flatMap(o, x => {
-                    return {
-                        id: x,
-                        w: (1 / o.length)
-                    }
-                })
-                picks.push(...o)
-            }
-        }
-
-        if (picks.length == 0) return {}
-
-        // 查询所有相关行政区记录信息
-
-        let ids = _.flatMap(picks, "id")
-        // let districts = _.filter(dzs, x => ids.indexOf(x.id) >= 0)
-
-        let districts = await redis.hget(ids)
-
-        for (let i in picks)
-            picks[i].districts = _.find(districts, x => x.id == picks[i].id).districts || {}
-
-        //只有一条记录时直接返回数据
-
-        if (districts.length == 1) return districts[0]
-
-        // 根据权重挑选,返回数据
-        let pickid = _pickup(picks, districts)
-        let district = _.find(districts, x => x.id == pickid)
-
-        return district
-    },
-
-    dict: async function () {
-
-        let keys = {}
-        let dzs = await redis.hget()
-        for (let i in dzs) {
-
-            let name = dzs[i].name
-            let kw = _keyword(name)
-
-            if (!keys[name]) keys[name] = []
-
-            keys[name].push(dzs[i].id)
-
-            if (kw != name && kw.length > 1)
-                (keys[kw]) ? keys[kw].push(dzs[i].id) : keys[kw] = [dzs[i].id]
-        }
-
-        let dicts = []
-        for (let key in keys) {
-            let tag = "",
-                freq = 1,
-                count = _level.length
-
-            dicts.push(`${key} ${freq} ${JSON.stringify(keys[key])}`)
-        }
-
-
-        fs.write("./res/jieba_district.utf8", dicts.join("\n"))
-        log(`[./res/jieba_district.utf8] dict is builded`)
-
-        loaddic()
+        if (kw != name && kw.length > 1)
+            (keys[kw]) ? keys[kw].push(dzs[i].id) : keys[kw] = [dzs[i].id]
     }
 
-}
+    let dicts = []
+    for (let key in keys) {
+        let tag = "",
+            freq = 1,
+            count = _level.length
 
+        dicts.push(`${key} ${freq} ${JSON.stringify(keys[key])}`)
+    }
+
+
+    fs.write("./res/jieba_district.utf8", dicts.join("\n"))
+    log(`[./res/jieba_district.utf8] dict is builded`)
+
+    loaddic()
+}
 
 module.exports = district;
 
@@ -195,6 +172,7 @@ module.exports = district;
 //     log(await district.match("保定"))
 //     // log(await redis.hget("7e6b9c4e"))
 //     // log(await redis.hget(["aa4ff08c","a4f748c2","376fb3ac","908965b3"]))
+//     district.done()
 
 // })()
 //     msdz.dict()
