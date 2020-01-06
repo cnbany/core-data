@@ -65,18 +65,34 @@ scenic.match = async function (name, city) {
     return (result.length > 0) ? result[0] : {}
 }
 
+scenic.merge = async function (src) {
+    let id ,
+        dst = {}
 
-scenic.merge = async  function (src)  {
-    let dst = (src.id) ? await this.hget(src.id) : await this.match(src.name, src.adcode)
-    if (dst) dst = merge(dst, src)
-    let o = {}
-    o[dst.id] = JSON.stringify(dst)
-    await this.hset(o)
+    if (!src.id && src.poi) id = await ids._hget(src.poi)
+    if (src.id || id) dst = await this.hget(src.id || id)
+
+    if ((!dst || JSON.stringify(dst) == "{}") && src.name && src.adcode) dst = await this.match(src.name, src.adcode)
+
+    if (dst) {
+        dst = merge(dst, src)
+
+        if (dst.id && dst.poi) {
+            let oid = {}
+            oid[dst.poi] = dst.id
+            await ids.hset(oid)
+        }
+
+        let o = {}
+        o[dst.id] = JSON.stringify(dst)
+        await this.hset(o)
+    }
+    return dst
 }
 
 scenic._done = scenic.done
 
-scenic.done = function (){
+scenic.done = function () {
     this._done()
     ids.done()
 }

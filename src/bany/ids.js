@@ -21,10 +21,10 @@ ids.hget = async function (keys) {
             }
         }
         if (JSON.stringify(o) !== "{}")
-            await ids.hset(name, o)
+            await ids.hset(o)
     } else if (_.isString(keys) && !ret) {
         ret = gen('1234567890abcdef', len)
-        await ids.hset(name, keys, ret)
+        await ids.hset(keys, ret)
     }
     return ret
 }

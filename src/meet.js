@@ -1,17 +1,17 @@
-process.env.DEBUG = "bany*"
+process.env.DEBUG = "*bany*"
 
 const _ = require("loadsh"),
-    fs = require('../lib/fs'),
+    fs = require('@cnbany/fs'),
     log = require("debug")("bany-scenic-meet:"),
     mdd = require("./bany/district"),
     aoi = require("./bany/scenic"),
     dsl = require("bodybuilder"), //doc: https://bodybuilder.js.org/
-    meet = require("../lib/redis")("meet", "json"),
-    elastic = require("../lib/elastic"),
+    meet = require("@cnbany/redis")("meet", "json"),
+    elastic = require("@cnbany/elastic"),
     timestamp = require("debug")("bany-scenic-timestamp")
 
 
-let db = new elastic("meet_ibc")
+
 
 function _done() {
     meet.done()
@@ -70,7 +70,7 @@ function parse(scenic) {
 
 async function es2redis() {
 
-
+    let db = new elastic("meet_ibc")
     let qs = dsl()
         .filter("match", "cls", "aoi")
         // .notFilter("range", "crw.amap", {
@@ -106,7 +106,9 @@ async function upsert() {
     for (let i in chunks) {
         let res = await meet.hget(chunks[i])
         for (let j in res) {
-           await aoi.merge(res[j])
+           let o = await aoi.merge(res[j])
+        //    log(o)
+          
         }
     }
     log(`upsert: is done. `)
@@ -115,8 +117,12 @@ async function upsert() {
 (async () => {
     // await es2redis()
     // await meet.hdump()
-    await upsert()
-    await aoi.hdump()
-    _done()
-    log("search done!")
+    // await upsert()
+    // await aoi.hdump()
+    // _done()
+    // log("search done!")
+
+    let db = new elastic("scenic-merge")
+    db.import("scenic.all.ndjson")
+    log("db import  done!")
 })()

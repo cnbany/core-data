@@ -14,7 +14,7 @@ async function cacheIds() {
     let db = new elastic("scenics")
     let log = require("debug")("bany-prepare-ids:")
     let ids = require('./ids')
-    await redis.del("ids")
+    await ids.del("ids")
     let qs = {
         "query": {
             "match_all": {}
@@ -24,6 +24,7 @@ async function cacheIds() {
     }
 
     db.on("data", async (res) => {
+        log("load data from elastic ....")
         res = _.reduce(res, function (result, item) {
             if (item.external && item.external.amap) {
                 let o = {}
@@ -35,8 +36,9 @@ async function cacheIds() {
         await ids.hset(res)
     })
 
-    db.on("searchdone", () => {
+    db.on("searchdone", async () => {
         log("load data from elastic done.")
+        await ids.hdump()
         ids.done()
     })
 
@@ -76,8 +78,9 @@ async function cacheDistrict() {
         await district.hset(res)
     })
 
-    db.on("searchdone", () => {
+    db.on("searchdone", async () => {
         log("load data from elastic done.")
+        await district.hdump()
         district.done()
     })
 
@@ -87,59 +90,60 @@ async function cacheDistrict() {
 };
 
 
-/* 
-    景区信息缓存
-    db (elasticsearch :scenics) => cache (redis: scenics)
- */
-async function cacheScenics() {
+// /* 
+//     景区信息缓存
+//     db (elasticsearch :scenics) => cache (redis: scenics)
+//  */
+// async function cacheScenics() {
 
-    let db = new elastic("scenics")
-    let log = require("debug")("bany-prepare-scenics:")
-    let scenic = require("./scenic");
-    await scenic.del("scenic")
-    let qs = {
-        "query": {
-            "match_all": {}
-        },
-        size: 5000
-    }
+//     let db = new elastic("scenics")
+//     let log = require("debug")("bany-prepare-scenics:")
+//     let scenic = require("./scenic");
+//     await scenic.del("scenic")
+//     let qs = {
+//         "query": {
+//             "match_all": {}
+//         },
+//         size: 5000
+//     }
 
-    qs._source = ["id", "aoi", "name", "address", "classify", "comment", "scenic", "adcode", "alias", "external"]
+//     qs._source = ["id", "aoi", "name", "address", "classify", "comment", "scenic", "adcode", "alias", "external"]
 
-    db.on("data", async (res) => {
-        log("load data from elastic...")
+//     db.on("data", async (res) => {
+//         log("load data from elastic...")
 
-        res = _.reduce(res, function (result, item) {
-            if (item.id) {
-                let o = {}
-                o[item.id] = JSON.stringify(item)
-                result.push(o)
-            }
-            return result;
-        }, [])
-        await scenic.hset(res)
-    })
+//         res = _.reduce(res, function (result, item) {
+//             if (item.id) {
+//                 let o = {}
+//                 o[item.id] = JSON.stringify(item)
+//                 result.push(o)
+//             }
+//             return result;
+//         }, [])
+//         await scenic.hset(res)
+//     })
 
-    db.on("searchdone", () => {
-        log("load data from elastic done.")
-        scenic.done()
-    })
+//     db.on("searchdone", async () => {
+//         log("load data from elastic done.")
+//         scenic.hdump()
+//         scenic.done()
+//     })
 
-    log("load data form elastic...")
-    db.search(qs)
+//     log("load data form elastic...")
+//     db.search(qs)
 
-};
+// };
 
 
-(async () => {
-    // await cacheIds()
-    await cacheDistrict()
-    // await cacheScenics()
-    // await cacheMeets()
-    // log(1)
-    // let redis = require('../lib/redis')("scenics");
-    // log(2)
-    // await redis.hget(["3a9444d2c0c1"])
-    // log(3)
+// (async () => {
+//     // await cacheIds()
+//     // await cacheDistrict()
+//     // await cacheScenics()
+//     // await cacheMeets()
+//     // log(1)
+//     // let redis = require('../lib/redis')("scenics");
+//     // log(2)
+//     // await redis.hget(["3a9444d2c0c1"])
+//     // log(3)
 
-})()
+// })()

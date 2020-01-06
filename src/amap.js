@@ -1,9 +1,9 @@
 process.env.DEBUG = "bany-scenic*"
 
 const _ = require("loadsh"),
-    fs = require('../lib/fs'),
+    fs = require('@cnbany/fs'),
     log = require("debug")("bany-scenic-amap:"),
-    ids = require("../lib/redis")("ids", 12),
+    ids = require("./bany/ids"),
     mdd = require("./bany/district"),
     aoi = require("./bany/scenic"),
     chinese = require("../lib/chinese"),
