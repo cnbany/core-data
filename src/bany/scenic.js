@@ -84,7 +84,7 @@ scenic.done = function (){
 
 module.exports = scenic;
 
-(async () => {
-    await scenic.match("包公园", '342401')
-    scenic.done()
-})()
+// (async () => {
+//     await scenic.match("包公园", '342401')
+//     scenic.done()
+// })()

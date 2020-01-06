@@ -1,10 +1,9 @@
 process.env.DEBUG = "bany*"
 
-const _ = require("lodash");
-const log = require("debug")("bany-prepare:")
-const dsl = require("bodybuilder"); //doc: https://bodybuilder.js.org/
-
-const elastic = require("../../lib/elastic")
+const _ = require("lodash"),
+    log = require("debug")("bany-prepare:"),
+    dsl = require("bodybuilder"), //doc: https://bodybuilder.js.org/
+    elastic = require("@cnbany/elastic")
 
 /* 
     景区ID缓存
@@ -14,8 +13,8 @@ async function cacheIds() {
 
     let db = new elastic("scenics")
     let log = require("debug")("bany-prepare-ids:")
-    let redis = require('../../lib/redis')("ids");
-
+    let ids = require('./ids')
+    await redis.del("ids")
     let qs = {
         "query": {
             "match_all": {}
@@ -33,12 +32,12 @@ async function cacheIds() {
             }
             return result;
         }, [])
-        await redis.hset(res)
+        await ids.hset(res)
     })
 
     db.on("searchdone", () => {
         log("load data from elastic done.")
-        redis.done()
+        ids.done()
     })
 
     log("load data form elastic...")
@@ -54,7 +53,9 @@ async function cacheDistrict() {
 
     let db = new elastic("district")
     let log = require("debug")("bany-prepare-district:")
-    let redis = require('../../lib/redis')("district");
+    let district = require('./district')
+
+    await district.del("district")
 
     let qs = dsl()
         .notFilter("match", "level", "street")
@@ -63,6 +64,7 @@ async function cacheDistrict() {
     qs._source = ["id", "parent", "citycode", "adcode", "name", "level", "loc", "districts", "alias"]
 
     db.on("data", async (res) => {
+        log("load data from elastic ....")
         res = _.reduce(res, function (result, item) {
             if (item.id) {
                 let o = {}
@@ -71,12 +73,12 @@ async function cacheDistrict() {
             }
             return result;
         }, [])
-        await redis.hset(res)
+        await district.hset(res)
     })
 
     db.on("searchdone", () => {
         log("load data from elastic done.")
-        redis.done()
+        district.done()
     })
 
     log("load data form elastic...")
@@ -93,8 +95,8 @@ async function cacheScenics() {
 
     let db = new elastic("scenics")
     let log = require("debug")("bany-prepare-scenics:")
-    let redis = require('../../lib/redis')("scenics");
-
+    let scenic = require("./scenic");
+    await scenic.del("scenic")
     let qs = {
         "query": {
             "match_all": {}
@@ -105,6 +107,7 @@ async function cacheScenics() {
     qs._source = ["id", "aoi", "name", "address", "classify", "comment", "scenic", "adcode", "alias", "external"]
 
     db.on("data", async (res) => {
+        log("load data from elastic...")
 
         res = _.reduce(res, function (result, item) {
             if (item.id) {
@@ -114,12 +117,12 @@ async function cacheScenics() {
             }
             return result;
         }, [])
-        await redis.hset(res)
+        await scenic.hset(res)
     })
 
     db.on("searchdone", () => {
         log("load data from elastic done.")
-        redis.done()
+        scenic.done()
     })
 
     log("load data form elastic...")
@@ -129,7 +132,7 @@ async function cacheScenics() {
 
 
 (async () => {
-    await cacheIds()
+    // await cacheIds()
     await cacheDistrict()
     // await cacheScenics()
     // await cacheMeets()
