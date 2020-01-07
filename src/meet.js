@@ -1,4 +1,4 @@
-process.env.DEBUG = "*bany*"
+process.env.DEBUG = "bany-scenic*"
 
 const _ = require("loadsh"),
     fs = require('@cnbany/fs'),
@@ -106,6 +106,8 @@ async function upsert() {
     for (let i in chunks) {
         let res = await meet.hget(chunks[i])
         for (let j in res) {
+            res[j].cls = "aoi"
+            log(res[j].name)
            let o = await aoi.merge(res[j])
         //    log(o)
           

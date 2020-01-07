@@ -17,17 +17,22 @@ function merge(dst, src) {
     //合并列表
 
     if (src.scenic && Array.isArray(res.scenic.qualify)) {
-        res.scenic.qualify.push(src.scenic.qualify)
+        res.scenic.qualify.push(...src.scenic.qualify)
         res.scenic.qualify = _.compact(res.scenic.qualify)
+        res.scenic.qualify = _.uniq(res.scenic.qualify)
+        
     }
 
     if (src.scenic && Array.isArray(res.scenic.special)) {
-        res.scenic.special.push(src.scenic.special)
+        res.scenic.special.push(...src.scenic.special)
         res.scenic.special = _.compact(res.scenic.special)
+        res.scenic.special = _.uniq(res.scenic.special)
     }
 
-    res.alias.push(src.alias)
+    res.alias.push(...src.alias)
     res.alias = _.compact(res.alias)
+    res.alias = _.uniq(res.alias)
+    if (src.cls) res.cls = src.cls
 
     return res
 }
@@ -66,7 +71,7 @@ scenic.match = async function (name, city) {
 }
 
 scenic.merge = async function (src) {
-    let id ,
+    let id,
         dst = {}
 
     if (!src.id && src.poi) id = await ids._hget(src.poi)
@@ -96,7 +101,6 @@ scenic.done = function () {
     this._done()
     ids.done()
 }
-
 
 module.exports = scenic;
 
