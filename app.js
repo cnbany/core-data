@@ -2,7 +2,7 @@ process.env.DEBUG = "bany-scenic*"
 const _ = require("lodash"),
     fs = require("@cnbany/fs"),
     log = require("debug")("bany-scenic:")
-    parse = require("./src/bany/parse")
+parse = require("./src/bany/parse")
 
 
 let scenics = [],
@@ -52,8 +52,11 @@ let lineFn = (line) => {
         onmap: li.onmap || undefined
     }
     // if (!(o.cls == "noop" && o.score < 2.5))
-    if (o.cls == "aoi" && o.onmap)
+    if (o.cls == "aoi" && o.onmap && (o.parent.length == 0 || o.parent.indexOf(o.id) >= 0)) {
+        o.parent = []
         scenics.push(o)
+    }
+
     // if (!o.onmap)
     //     log(o)
     if (count++ % 10000 == 0)
@@ -61,23 +64,23 @@ let lineFn = (line) => {
 
 }
 
-function  output(name,items){
+function output(name, items) {
     items = _.compact(_.uniq(items))
-    fs.write(name+".txt", items.join("\n"))
+    fs.write(name + ".txt", items.join("\n"))
     log(count, `file [${name}.txt] save done`)
 }
 
 let doneFn = () => {
 
-    output("ids",ids)
-    output("tours",tours)
-    output("qualifys",qualifys)
-    output("specials",specials)
-    output("peoples",peoples)
+    // output("ids", ids)
+    // output("tours", tours)
+    // output("qualifys", qualifys)
+    // output("specials", specials)
+    // output("peoples", peoples)
 
 
-    fs.write("scenics.ndjson", scenics)
-    log(count, "file [scenics.ndjson] save done")
+    fs.write("scenics-aoi.ndjson", scenics)
+    log(count, "file [scenics-aoi.ndjson] save done")
 }
 
 fs.readline("scenic.all.ndjson", lineFn, doneFn)
