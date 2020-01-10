@@ -22,7 +22,7 @@ for (let i in earth.SCALE) {
         let bflag = true
         if (dest.length > 0)
             for (let k in dest) {
-                if (count++ % 100000 == 0) log(count)
+                if (count++ % 3000000 == 0) log(count)
                 if (earth.distance(scenics[j].onmap.point, dest[k].onmap.point) < earth.SCALE[i] / 2) {
                     bflag = false
                     continue
