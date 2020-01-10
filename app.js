@@ -52,16 +52,15 @@ let lineFn = (line) => {
         onmap: li.onmap || undefined
     }
     // if (!(o.cls == "noop" && o.score < 2.5))
-    if (o.cls == "aoi" && o.onmap && (o.parent.length == 0 || o.parent.indexOf(o.id) >= 0)) {
-        o.parent = []
+    // if (o.cls == "aoi" && o.onmap && (o.parent.length == 0 || o.parent.indexOf(o.id) >= 0)) {
+        // o.parent = []
         scenics.push(o)
-    }
+    // }
 
     // if (!o.onmap)
     //     log(o)
     if (count++ % 10000 == 0)
         log(count, li.name)
-
 }
 
 function output(name, items) {
@@ -79,8 +78,8 @@ let doneFn = () => {
     // output("peoples", peoples)
 
 
-    fs.write("scenics-aoi.ndjson", scenics)
-    log(count, "file [scenics-aoi.ndjson] save done")
+    fs.write("scenics-all.ndjson", scenics)
+    log(count, "file [scenics-all.ndjson] save done")
 }
 
-fs.readline("scenic.all.ndjson", lineFn, doneFn)
+fs.readline("./cache/scenic.all.ndjson", lineFn, doneFn)

@@ -6,6 +6,7 @@ const _ = require("lodash"),
     log = require("debug")("bany-scenic:"),
     scenic = require('@cnbany/redis')("scenic", "json"),
     amap = require('../../lib/amap')
+    
 
 
 
@@ -20,7 +21,7 @@ function merge(dst, src) {
         res.scenic.qualify.push(...src.scenic.qualify)
         res.scenic.qualify = _.compact(res.scenic.qualify)
         res.scenic.qualify = _.uniq(res.scenic.qualify)
-        
+
     }
 
     if (src.scenic && Array.isArray(res.scenic.special)) {

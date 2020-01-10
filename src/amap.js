@@ -1,5 +1,7 @@
 process.env.DEBUG = "bany-scenic*"
 
+const SCALE = [5000000, 2000000, 1000000, 500000, 200000, 100000, 50000, 25000, 20000, 10000, 5000, 2000, 1000, 500, 200, 100, 50, 25, 10, 5]
+
 const _ = require("loadsh"),
     fs = require('@cnbany/fs'),
     log = require("debug")("bany-scenic-amap:"),
