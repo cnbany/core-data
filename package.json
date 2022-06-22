@@ -17,7 +17,7 @@
     "dotenv": "^8.2.0",
     "dotenv-expand": "^5.1.0",
     "globby": "^10.0.1",
-    "got": "^9.6.0",
+    "got": "^11.8.5",
     "graceful-fs": "^4.2.3",
     "ioredis": "^4.14.1",
     "loadsh": "^0.0.4",
